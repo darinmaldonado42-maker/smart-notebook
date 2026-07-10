@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Умный Блокнот</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <div class="user-profile">
+                <div class="avatar" id="user-avatar">📝</div>
+                <div class="user-info">
+                    <h2 id="user-name">Загрузка...</h2>
+                    <p class="subtitle">Интеллектуальный блокнот</p>
+                </div>
+            </div>
+            <button id="refresh-btn" class="icon-btn"><i class="fa-solid fa-rotate"></i></button>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" placeholder="Поиск заметок и задач..." autocomplete="off">
+            <button id="search-clear" class="clear-btn hidden"><i class="fa-solid fa-circle-xmark"></i></button>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="filters-container">
+            <button class="filter-capsule active" data-category="all">Все</button>
+            <button class="filter-capsule" data-category="Идея"><i class="fa-solid fa-lightbulb"></i> Идеи</button>
+            <button class="filter-capsule" data-category="Задача"><i class="fa-solid fa-list-check"></i> Задачи</button>
+            <button class="filter-capsule" data-category="Учеба"><i class="fa-solid fa-graduation-cap"></i> Учеба</button>
+            <button class="filter-capsule" data-category="Повседневное"><i class="fa-solid fa-house"></i> Повседневное</button>
+        </div>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Loading skeleton/spinner -->
+            <div id="loading-state" class="center-state">
+                <div class="spinner"></div>
+                <p>Получаем ваши мысли...</p>
+            </div>
+
+            <!-- Empty notes state -->
+            <div id="empty-state" class="center-state hidden">
+                <div class="empty-icon-wrapper">
+                    <i class="fa-solid fa-microphone-lines empty-icon"></i>
+                </div>
+                <h3>Блокнот пуст</h3>
+                <p>Наговорите голосовое сообщение или напишите текст в чате с ботом, и структурированные заметки появятся здесь!</p>
+            </div>
+
+            <!-- Notes Cards Grid -->
+            <div id="notes-grid" class="notes-grid hidden">
+                <!-- Injected via JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- API base URL config (overridden on Timeweb deployment) -->
+    <script src="api_config.js?v=6"></script>
+    <script src="app.js?v=6"></script>
+</body>
+</html>

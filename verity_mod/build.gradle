@@ -1,0 +1,43 @@
+plugins {
+    id 'fabric-loom' version '1.7-SNAPSHOT'
+    id 'maven-publish'
+}
+
+version = '1.0.0'
+group = 'com.example.verity'
+
+base {
+    archivesName = 'verity'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+dependencies {
+    // Ядро Minecraft
+    minecraft "com.mojang:minecraft:1.21.1"
+
+    // Официальные маппинги Mojang
+    mappings loom.officialMojangMappings()
+
+    // Загрузчик модов Fabric Loader
+    modImplementation "net.fabricmc:fabric-loader:0.16.0"
+
+    // Fabric API (набор интерфейсов для работы с событиями, регистрами и т.д.)
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.102.0+1.21.1"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
