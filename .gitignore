@@ -67,3 +67,6 @@ venv.bak/
 postgres_data/
 redis_data/
 docker-compose.override.yml
+
+# Ignore other projects
+verity_mod/
