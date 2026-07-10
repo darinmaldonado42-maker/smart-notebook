@@ -45,16 +45,16 @@ def validate_init_data(init_data: str, token: str) -> dict | None:
 def get_authenticated_user(request: web.Request) -> dict | None:
     """
     Retrieves user from Authorization header.
-    Allows localhost fallback query parameters for local development.
+    Allows query parameter fallback for browser link access.
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("tma "):
-        # Dev fallback: allow direct localhost queries using ?user_id=
-        host = request.host.split(":")[0]
-        if host in ("localhost", "127.0.0.1"):
-            user_id = request.query.get("user_id")
-            if user_id:
-                return {"id": int(user_id), "first_name": "Local Developer"}
+        user_id = request.query.get("user_id")
+        if user_id:
+            try:
+                return {"id": int(user_id), "first_name": "Пользователь"}
+            except ValueError:
+                pass
         return None
     
     init_data = auth_header[4:] # Strip "tma "
