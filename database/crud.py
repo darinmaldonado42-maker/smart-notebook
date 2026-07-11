@@ -114,13 +114,13 @@ async def get_user_categories(session: AsyncSession, user_id: int) -> list[Categ
     if not categories:
         # Seed default categories
         defaults = [
-            ("Идея", "idea"),
-            ("Учеба", "study"),
-            ("Повседневное", "daily")
+            ("Идея", "idea", "lightbulb"),
+            ("Учеба", "study", "graduation-cap"),
+            ("Повседневное", "daily", "house")
         ]
         categories = []
-        for name, color in defaults:
-            cat = Category(user_id=user_id, name=name, color=color)
+        for name, color, icon in defaults:
+            cat = Category(user_id=user_id, name=name, color=color, icon=icon)
             session.add(cat)
             categories.append(cat)
         await session.commit()
@@ -133,10 +133,11 @@ async def create_user_category(
     session: AsyncSession,
     user_id: int,
     name: str,
-    color: str
+    color: str,
+    icon: str
 ) -> Category:
     """Creates a new custom category for a user."""
-    cat = Category(user_id=user_id, name=name, color=color)
+    cat = Category(user_id=user_id, name=name, color=color, icon=icon)
     session.add(cat)
     await session.commit()
     await session.refresh(cat)

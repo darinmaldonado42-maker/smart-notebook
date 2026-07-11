@@ -186,7 +186,7 @@ async def get_categories(request: web.Request):
         async with request.app["db_session"]() as session:
             from database.crud import get_user_categories
             categories = await get_user_categories(session, user_id)
-            data = [{"id": c.id, "name": c.name, "color": c.color} for c in categories]
+            data = [{"id": c.id, "name": c.name, "color": c.color, "icon": c.icon} for c in categories]
             return web.json_response({"categories": data})
     except Exception as e:
         logger.error(f"Error getting categories for user {user_id}: {e}", exc_info=True)
@@ -204,13 +204,14 @@ async def create_category_api(request: web.Request):
         req_data = await request.json()
         name = req_data.get("name")
         color = req_data.get("color")
+        icon = req_data.get("icon", "tag") # default to tag
         if not name or not color:
             return web.json_response({"error": "Missing name or color"}, status=400)
             
         async with request.app["db_session"]() as session:
             from database.crud import create_user_category
-            cat = await create_user_category(session, user_id, name, color)
-            return web.json_response({"id": cat.id, "name": cat.name, "color": cat.color})
+            cat = await create_user_category(session, user_id, name, color, icon)
+            return web.json_response({"id": cat.id, "name": cat.name, "color": cat.color, "icon": cat.icon})
     except Exception as e:
         logger.error(f"Error creating category for user {user_id}: {e}", exc_info=True)
         return web.json_response({"error": "Internal Server Error"}, status=500)

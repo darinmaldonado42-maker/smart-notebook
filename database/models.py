@@ -48,6 +48,7 @@ class Category(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     color: Mapped[str] = mapped_column(String(20), nullable=False, server_default="study") # e.g. "idea", "task", "study", "daily"
+    icon: Mapped[str | None] = mapped_column(String(50), nullable=True, server_default="tag") # e.g. "lightbulb", "briefcase"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="categories")

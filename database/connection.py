@@ -20,6 +20,9 @@ async_session = async_sessionmaker(
 async def init_db():
     """Initializes the database schema (creates tables if they do not exist)."""
     from database.models import Base
+    from sqlalchemy import text
     async with engine.begin() as conn:
         # Create tables
         await conn.run_sync(Base.metadata.create_all)
+        # Add column if not exists
+        await conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'tag';"))

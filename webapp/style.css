@@ -746,3 +746,68 @@ main {
 .create-cat-submit-btn:hover {
     background: #2563eb;
 }
+
+/* Fixed category plus button wrapper layout */
+.filters-bar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+.add-category-fixed-btn {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--hint-color);
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.add-category-fixed-btn:hover {
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+.add-category-fixed-btn:active {
+    transform: scale(0.95);
+}
+
+/* Icon Selector inside custom category Modal */
+.icon-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 8px 0;
+}
+.icon-option {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    color: var(--hint-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.icon-option i {
+    font-size: 13px;
+}
+.icon-option:hover {
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.08);
+}
+.icon-option.selected {
+    background: var(--button-color);
+    color: var(--button-text-color);
+    border-color: var(--button-color);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}

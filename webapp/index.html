@@ -9,7 +9,7 @@
     <!-- Google Fonts & FontAwesome -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=11">
+    <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
     <div id="app">
@@ -72,6 +72,8 @@
                 </div>
                 <form class="add-category-form" id="add-category-form">
                     <input type="text" id="new-category-name" placeholder="Название новой категории" required maxlength="20">
+                    
+                    <div style="font-size: 12px; color: var(--hint-color); margin-top: 4px;">Выберите цвет темы:</div>
                     <div class="color-selector" id="color-selector">
                         <div class="color-option idea selected" data-color="idea" title="Идея"></div>
                         <div class="color-option task" data-color="task" title="Задача"></div>
@@ -84,6 +86,21 @@
                         <div class="color-option creative" data-color="creative" title="Творчество"></div>
                         <div class="color-option travel" data-color="travel" title="Путешествия"></div>
                     </div>
+                    
+                    <div style="font-size: 12px; color: var(--hint-color); margin-top: 4px;">Выберите иконку темы:</div>
+                    <div class="icon-selector" id="icon-selector">
+                        <div class="icon-option selected" data-icon="lightbulb" title="Идея"><i class="fa-solid fa-lightbulb"></i></div>
+                        <div class="icon-option" data-icon="list-check" title="Задача"><i class="fa-solid fa-list-check"></i></div>
+                        <div class="icon-option" data-icon="graduation-cap" title="Учеба"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="icon-option" data-icon="house" title="Дом"><i class="fa-solid fa-house"></i></div>
+                        <div class="icon-option" data-icon="briefcase" title="Работа"><i class="fa-solid fa-briefcase"></i></div>
+                        <div class="icon-option" data-icon="wallet" title="Финансы"><i class="fa-solid fa-wallet"></i></div>
+                        <div class="icon-option" data-icon="heart-pulse" title="Здоровье"><i class="fa-solid fa-heart-pulse"></i></div>
+                        <div class="icon-option" data-icon="cart-shopping" title="Покупки"><i class="fa-solid fa-cart-shopping"></i></div>
+                        <div class="icon-option" data-icon="palette" title="Творчество"><i class="fa-solid fa-palette"></i></div>
+                        <div class="icon-option" data-icon="plane" title="Путешествия"><i class="fa-solid fa-plane"></i></div>
+                    </div>
+                    
                     <button type="submit" class="create-cat-submit-btn">Добавить категорию</button>
                 </form>
             </div>
@@ -91,7 +108,7 @@
     </div>
 
     <!-- API base URL config (overridden on Timeweb deployment) -->
-    <script src="api_config.js?v=11"></script>
-    <script src="app.js?v=11"></script>
+    <script src="api_config.js?v=12"></script>
+    <script src="app.js?v=12"></script>
 </body>
 </html>

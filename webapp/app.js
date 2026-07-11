@@ -75,6 +75,11 @@ function getNoteCategoryColor(categoryName) {
     return cat ? cat.color : "study"; // fallback to blue/study
 }
 
+function getNoteCategoryIcon(categoryName) {
+    const cat = categoriesList.find(c => c.name === categoryName);
+    return cat ? cat.icon : "tag"; // fallback to tag icon
+}
+
 // Loader UI toggle
 function showLoading(isLoading) {
     if (isLoading) {
@@ -178,8 +183,10 @@ const closeModalBtn = document.getElementById("close-modal-btn");
 const categoryManagerList = document.getElementById("category-manager-list");
 const addCategoryForm = document.getElementById("add-category-form");
 const newCatNameInput = document.getElementById("new-category-name");
+const addCatBtn = document.getElementById("add-cat-btn");
 
 let selectedColor = "idea";
+let selectedIcon = "lightbulb";
 
 // Setup color option clicks in modal
 document.querySelectorAll(".color-option").forEach(opt => {
@@ -189,6 +196,19 @@ document.querySelectorAll(".color-option").forEach(opt => {
         selectedColor = opt.dataset.color;
     });
 });
+
+// Setup icon option clicks in modal
+document.querySelectorAll(".icon-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+        document.querySelectorAll(".icon-option").forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        selectedIcon = opt.dataset.icon;
+    });
+});
+
+if (addCatBtn) {
+    addCatBtn.addEventListener("click", () => openCategoriesModal());
+}
 
 function openCategoriesModal() {
     modal.classList.add("active");
@@ -211,7 +231,9 @@ function renderCategoryManagerList() {
         item.className = "category-manager-item";
         item.innerHTML = `
             <div class="category-item-label">
-                <div class="category-color-dot ${cat.color}"></div>
+                <span class="category-icon-preview ${cat.color}" style="color: var(--accent-${cat.color}); font-size: 14px; width: 20px; text-align: center; margin-right: 4px;">
+                    <i class="fa-solid fa-${cat.icon || 'tag'}"></i>
+                </span>
                 <span>${cat.name}</span>
             </div>
             <button class="delete-cat-btn" data-id="${cat.id}"><i class="fa-solid fa-trash-can"></i></button>
@@ -263,7 +285,7 @@ if (addCategoryForm) {
             const response = await fetch(`${base}/api/categories${queryParams}`, {
                 method: "POST",
                 headers: getHeaders(),
-                body: JSON.stringify({ name, color: selectedColor })
+                body: JSON.stringify({ name, color: selectedColor, icon: selectedIcon })
             });
             if (response.ok) {
                 const newCat = await response.json();
@@ -399,7 +421,7 @@ function renderNotes() {
         
         const noteMeta = document.createElement("div");
         noteMeta.className = "note-meta";
-        noteMeta.innerHTML = `<span class="category-tag">${note.category}</span> <span class="note-date">${dateStr}</span>`;
+        noteMeta.innerHTML = `<span class="category-tag"><i class="fa-solid fa-${getNoteCategoryIcon(note.category)}"></i> ${note.category}</span> <span class="note-date">${dateStr}</span>`;
         cardHeader.appendChild(noteMeta);
 
         // Actions buttons container
