@@ -198,6 +198,7 @@ header {
     display: flex;
     gap: 8px;
     overflow-x: auto;
+    flex-grow: 1;
     padding: 4px 0;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
