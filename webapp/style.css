@@ -13,6 +13,12 @@
     --accent-task: #10b981;       /* Emerald green */
     --accent-study: #3b82f6;      /* Sapphire blue */
     --accent-daily: #f43f5e;      /* Rose red */
+    --accent-work: #a855f7;       /* Purple */
+    --accent-finance: #f97316;    /* Orange */
+    --accent-health: #14b8a6;     /* Teal */
+    --accent-shopping: #ec4899;   /* Pink */
+    --accent-creative: #6366f1;   /* Indigo */
+    --accent-travel: #06b6d4;     /* Cyan */
     
     /* Glassmorphism System */
     --glass-bg: rgba(17, 24, 39, 0.65);
@@ -568,6 +574,12 @@ main {
 .note-card.cat-color-task { --theme-color: var(--accent-task); }
 .note-card.cat-color-study { --theme-color: var(--accent-study); }
 .note-card.cat-color-daily { --theme-color: var(--accent-daily); }
+.note-card.cat-color-work { --theme-color: var(--accent-work); }
+.note-card.cat-color-finance { --theme-color: var(--accent-finance); }
+.note-card.cat-color-health { --theme-color: var(--accent-health); }
+.note-card.cat-color-shopping { --theme-color: var(--accent-shopping); }
+.note-card.cat-color-creative { --theme-color: var(--accent-creative); }
+.note-card.cat-color-travel { --theme-color: var(--accent-travel); }
 
 /* Modal Styles */
 .modal-overlay {
@@ -656,6 +668,12 @@ main {
 .category-color-dot.task { background: var(--accent-task); }
 .category-color-dot.study { background: var(--accent-study); }
 .category-color-dot.daily { background: var(--accent-daily); }
+.category-color-dot.work { background: var(--accent-work); }
+.category-color-dot.finance { background: var(--accent-finance); }
+.category-color-dot.health { background: var(--accent-health); }
+.category-color-dot.shopping { background: var(--accent-shopping); }
+.category-color-dot.creative { background: var(--accent-creative); }
+.category-color-dot.travel { background: var(--accent-travel); }
 
 .delete-cat-btn {
     background: transparent;
@@ -708,6 +726,12 @@ main {
 .color-option.task { background: var(--accent-task); }
 .color-option.study { background: var(--accent-study); }
 .color-option.daily { background: var(--accent-daily); }
+.color-option.work { background: var(--accent-work); }
+.color-option.finance { background: var(--accent-finance); }
+.color-option.health { background: var(--accent-health); }
+.color-option.shopping { background: var(--accent-shopping); }
+.color-option.creative { background: var(--accent-creative); }
+.color-option.travel { background: var(--accent-travel); }
 
 .create-cat-submit-btn {
     background: var(--button-color);

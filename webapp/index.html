@@ -9,7 +9,7 @@
     <!-- Google Fonts & FontAwesome -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
     <div id="app">
@@ -73,10 +73,16 @@
                 <form class="add-category-form" id="add-category-form">
                     <input type="text" id="new-category-name" placeholder="Название новой категории" required maxlength="20">
                     <div class="color-selector" id="color-selector">
-                        <div class="color-option idea selected" data-color="idea"></div>
-                        <div class="color-option task" data-color="task"></div>
-                        <div class="color-option study" data-color="study"></div>
-                        <div class="color-option daily" data-color="daily"></div>
+                        <div class="color-option idea selected" data-color="idea" title="Идея"></div>
+                        <div class="color-option task" data-color="task" title="Задача"></div>
+                        <div class="color-option study" data-color="study" title="Учеба"></div>
+                        <div class="color-option daily" data-color="daily" title="Повседневное"></div>
+                        <div class="color-option work" data-color="work" title="Работа"></div>
+                        <div class="color-option finance" data-color="finance" title="Финансы"></div>
+                        <div class="color-option health" data-color="health" title="Здоровье"></div>
+                        <div class="color-option shopping" data-color="shopping" title="Покупки"></div>
+                        <div class="color-option creative" data-color="creative" title="Творчество"></div>
+                        <div class="color-option travel" data-color="travel" title="Путешествия"></div>
                     </div>
                     <button type="submit" class="create-cat-submit-btn">Добавить категорию</button>
                 </form>
@@ -85,7 +91,7 @@
     </div>
 
     <!-- API base URL config (overridden on Timeweb deployment) -->
-    <script src="api_config.js?v=10"></script>
-    <script src="app.js?v=10"></script>
+    <script src="api_config.js?v=11"></script>
+    <script src="app.js?v=11"></script>
 </body>
 </html>

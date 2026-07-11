@@ -137,10 +137,19 @@ function renderCategoriesUI() {
         btn.dataset.category = cat.name;
         
         let iconHtml = "";
-        if (cat.color === "idea") iconHtml = `<i class="fa-solid fa-lightbulb"></i> `;
-        else if (cat.color === "study") iconHtml = `<i class="fa-solid fa-graduation-cap"></i> `;
-        else if (cat.color === "task") iconHtml = `<i class="fa-solid fa-list-check"></i> `;
-        else iconHtml = `<i class="fa-solid fa-house"></i> `;
+        switch (cat.color) {
+            case "idea": iconHtml = `<i class="fa-solid fa-lightbulb"></i> `; break;
+            case "study": iconHtml = `<i class="fa-solid fa-graduation-cap"></i> `; break;
+            case "task": iconHtml = `<i class="fa-solid fa-list-check"></i> `; break;
+            case "daily": iconHtml = `<i class="fa-solid fa-house"></i> `; break;
+            case "work": iconHtml = `<i class="fa-solid fa-briefcase"></i> `; break;
+            case "finance": iconHtml = `<i class="fa-solid fa-wallet"></i> `; break;
+            case "health": iconHtml = `<i class="fa-solid fa-heart-pulse"></i> `; break;
+            case "shopping": iconHtml = `<i class="fa-solid fa-cart-shopping"></i> `; break;
+            case "creative": iconHtml = `<i class="fa-solid fa-palette"></i> `; break;
+            case "travel": iconHtml = `<i class="fa-solid fa-plane"></i> `; break;
+            default: iconHtml = `<i class="fa-solid fa-tag"></i> `; break;
+        }
         
         btn.innerHTML = `${iconHtml}${cat.name}`;
         btn.addEventListener("click", () => selectCategory(cat.name, btn));
@@ -435,25 +444,12 @@ function renderNotes() {
         titleEl.innerText = note.title || "Без названия";
         card.appendChild(titleEl);
 
-        // Summary (subtitle below title)
-        const summary = document.createElement("div");
-        summary.className = "note-summary";
-        summary.innerText = note.summary;
-        card.appendChild(summary);
-
-        // Expandable details container
-        const details = document.createElement("div");
-        details.className = "note-details hidden";
-
-        // Checklist tasks
+        // Checklist tasks (always visible, directly under title)
         if (note.tasks && note.tasks.length > 0) {
-            const tasksTitle = document.createElement("div");
-            tasksTitle.className = "tasks-title";
-            tasksTitle.innerHTML = `<i class="fa-solid fa-circle-check"></i> Выжимка задач`;
-            details.appendChild(tasksTitle);
-
             const taskList = document.createElement("div");
             taskList.className = "task-list";
+            taskList.style.marginTop = "8px";
+            taskList.style.marginBottom = "4px";
             
             note.tasks.forEach((task, index) => {
                 const taskItem = document.createElement("button");
@@ -475,7 +471,7 @@ function renderNotes() {
                 `;
 
                 taskItem.addEventListener("click", (evt) => {
-                    evt.stopPropagation();
+                    evt.stopPropagation(); // prevent card expand toggle when checking a task
                     const state = taskItem.classList.toggle("checked");
                     localStorage.setItem(taskKey, state ? "true" : "false");
                     
@@ -486,10 +482,24 @@ function renderNotes() {
 
                 taskList.appendChild(taskItem);
             });
-            details.appendChild(taskList);
+            card.appendChild(taskList);
         }
 
-        // Original Speech Transcript section
+        // Expandable details container (hidden initially)
+        const details = document.createElement("div");
+        details.className = "note-details hidden";
+
+        // Summary section (inside details container, hidden initially)
+        const summarySection = document.createElement("div");
+        summarySection.className = "summary-section";
+        summarySection.style.marginBottom = "12px";
+        summarySection.innerHTML = `
+            <div class="summary-title" style="font-family: var(--font-title); font-size: 12px; font-weight: 600; color: var(--theme-color); text-transform: uppercase; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;"><i class="fa-solid fa-lightbulb"></i> Суть заметки</div>
+            <div class="summary-text" style="font-size: 13.5px; color: var(--text-color); line-height: 1.45; background: rgba(255, 255, 255, 0.02); padding: 10px 12px; border-radius: 10px; border-left: 3px solid var(--theme-color);">${note.summary}</div>
+        `;
+        details.appendChild(summarySection);
+
+        // Original Speech Transcript section (inside details container, hidden initially)
         const originalSection = document.createElement("div");
         originalSection.className = "original-section";
         originalSection.innerHTML = `
@@ -498,6 +508,7 @@ function renderNotes() {
         `;
         details.appendChild(originalSection);
         details.style.cursor = "default";
+        
         // Stop detail click propagation to prevent card auto-closing on text copying
         details.addEventListener("click", (evt) => evt.stopPropagation());
         
