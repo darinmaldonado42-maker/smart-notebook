@@ -18,6 +18,62 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def reminder_worker(bot: Bot):
+    logger.info("Starting reminder background worker...")
+    while True:
+        try:
+            await asyncio.sleep(15) # check every 15 seconds
+            from datetime import datetime, timezone
+            from sqlalchemy import select
+            from database.models import Note
+            
+            now = datetime.now(timezone.utc)
+            async with async_session() as session:
+                # Find all notes with reminders due that haven't been sent
+                stmt = select(Note).where(
+                    Note.reminder_at != None,
+                    Note.reminder_at <= now,
+                    Note.reminder_sent == False
+                )
+                result = await session.execute(stmt)
+                due_notes = result.scalars().all()
+                
+                for note in due_notes:
+                    try:
+                        # Build formatted reminder message
+                        msg = (
+                            f"🔔 <b>Напоминание о событии!</b>\n\n"
+                            f"📌 <b>{note.title or 'Заметка'}</b>\n"
+                            f"📂 Категория: #{note.category}\n\n"
+                            f"🎯 <b>Главное:</b>\n{note.summary}\n\n"
+                        )
+                        if note.tasks:
+                            msg += "📝 <b>Задачи:</b>\n"
+                            for task in note.tasks:
+                                # handle string or object format
+                                text = task if isinstance(task, str) else task.get("text", "")
+                                completed = False if isinstance(task, str) else task.get("completed", False)
+                                check = "✅" if completed else "⬜"
+                                msg += f"{check} {text}\n"
+                        
+                        await bot.send_message(
+                            chat_id=note.user_id,
+                            text=msg,
+                            parse_mode="HTML"
+                        )
+                        # Mark as sent
+                        note.reminder_sent = True
+                    except Exception as ex:
+                        logger.error(f"Failed to send reminder for note {note.id}: {ex}")
+                
+                if due_notes:
+                    await session.commit()
+        except asyncio.CancelledError:
+            logger.info("Reminder background worker cancelled.")
+            break
+        except Exception as e:
+            logger.error(f"Error in reminder worker loop: {e}", exc_info=True)
+
 async def main():
     # 1. Initialize Redis client and FSM Storage
     logger.info("Connecting to Redis...")
@@ -71,11 +127,14 @@ async def main():
 
     # 7. Start bot polling
     logger.info("Starting Telegram Bot polling loop...")
+    reminder_task = asyncio.create_task(reminder_worker(bot))
     try:
         # Delete webhook before starting polling to clear pending updates
         await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot)
     finally:
+        # Cancel background task
+        reminder_task.cancel()
         # Graceful shutdown of open connections and server runner
         logger.info("Shutting down resources (Web server, Redis, PostgreSQL)...")
         await runner.cleanup()

@@ -812,3 +812,50 @@ main {
     border-color: var(--button-color);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
+
+/* Header actions list */
+.header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Editor checklist task row input */
+.editor-task-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+.editor-task-check {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--button-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.editor-task-input {
+    flex-grow: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--text-color);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.editor-task-input:focus {
+    border-color: var(--button-color);
+}
+.editor-task-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--hint-color);
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+.editor-task-delete-btn:hover {
+    color: var(--accent-daily);
+}

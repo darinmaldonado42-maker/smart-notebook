@@ -26,3 +26,5 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
         # Add column if not exists
         await conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'tag';"))
+        await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMP WITH TIME ZONE;"))
+        await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT false;"))

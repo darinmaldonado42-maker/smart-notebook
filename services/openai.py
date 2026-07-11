@@ -34,7 +34,9 @@ class OpenAIService:
         Uses configured LLM model to analyze and structure user's raw thoughts into JSON.
         Compares with recent notes to merge/append tasks semantically, and matches user categories.
         """
+        import datetime
         categories_str = ", ".join(f"'{c}'" for c in categories) if categories else "'Идея', 'Учеба', 'Повседневное'"
+        current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
         
         notes_str = ""
         if recent_notes:
@@ -44,12 +46,14 @@ class OpenAIService:
 
         system_prompt = (
             "Ты ассистент-структуризатор. Пользователь наговаривает поток мыслей.\n"
+            f"Текущие дата и время: {current_time_str}\n\n"
             "Твоя задача:\n"
             "1. Сравнить новую мысль со списком существующих заметок пользователя. Если новая мысль логически/тематически продолжает или дополняет одну из существующих заметок, выбери её.\n"
             "2. Сгенерировать короткий и емкий заголовок для заметки (если создается новая заметка) или вернуть заголовок существующей (если дополняется существующая). Заголовок должен быть 2-5 слов в именительном падеже.\n"
             "3. Убрать мусор и слова-паразиты, выделить главную мысль (summary). Если мысль дополняет существующую заметку, сгенерируй обновленный summary, объединяющий старую суть и новую мысль.\n"
             "4. Вытащить новые конкретные задачи в маркированный список (tasks).\n"
-            "5. Присвоить одну из доступных категорий: {categories_str}.\n\n"
+            "5. Присвоить одну из доступных категорий: {categories_str}.\n"
+            "6. Если пользователь упоминает дату и/или время для напоминания о событии или задаче (например, 'напомни завтра в 10 утра', '15 июля сходить к врачу', 'напомнить через 2 часа позвонить'), определи точное абсолютное время этого напоминания на основе текущего времени и запиши в поле `reminder_at` в формате ISO 8601 (например: '2026-07-11T10:00:00'). Если конкретное напоминание не упоминается, верни null.\n\n"
             "Список существующих заметок пользователя:\n"
             "{notes_str}\n\n"
             "Верни ответ строго в формате JSON:\n"
@@ -59,6 +63,7 @@ class OpenAIService:
             "  \"category\": string,              // категория заметки (выбери одну из: {categories_str})\n"
             "  \"summary\": string,               // суть (обновленный summary для существующей или новый summary для новой)\n"
             "  \"tasks\": list of strings,        // только НОВЫЕ задачи, извлеченные из сообщения, которые нужно добавить/создать\n"
+            "  \"reminder_at\": string or null,   // ISO 8601 строка даты/времени напоминания, либо null\n"
             "  \"raw_clean_text\": string\n"
             "}}"
         ).format(categories_str=categories_str, notes_str=notes_str)
@@ -79,12 +84,12 @@ class OpenAIService:
                 
             data = json.loads(content)
             # Validate required JSON keys
-            required_keys = ["title", "category", "summary", "tasks", "raw_clean_text", "matched_note_id"]
+            required_keys = ["title", "category", "summary", "tasks", "raw_clean_text", "matched_note_id", "reminder_at"]
             for key in required_keys:
                 if key not in data:
                     if key == "tasks":
                         data[key] = []
-                    elif key == "matched_note_id":
+                    elif key in ["matched_note_id", "reminder_at"]:
                         data[key] = None
                     else:
                         data[key] = ""

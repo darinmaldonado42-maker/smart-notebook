@@ -436,7 +436,7 @@ function renderNotes() {
         shareBtn.title = "Поделиться";
         shareBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            const taskBullets = note.tasks.length ? note.tasks.map(t => `• ${t}`).join("\n") : "Задачи отсутствуют.";
+            const taskBullets = note.tasks.length ? note.tasks.map(t => `• ${typeof t === 'string' ? t : t.text}`).join("\n") : "Задачи отсутствуют.";
             const shareText = `📂 Категория: #${note.category}\n🎯 Главное:\n${note.summary}\n\n📝 Задачи:\n${taskBullets}\n\n🎙️ Оригинал мыслей:\n${note.original_text}`;
             
             navigator.clipboard.writeText(shareText).then(() => {
@@ -447,6 +447,17 @@ function renderNotes() {
             });
         });
         noteActions.appendChild(shareBtn);
+
+        // Edit action button
+        const editBtn = document.createElement("button");
+        editBtn.className = "action-btn edit";
+        editBtn.innerHTML = `<i class="fa-solid fa-pen"></i>`;
+        editBtn.title = "Редактировать";
+        editBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openEditorForEdit(note);
+        });
+        noteActions.appendChild(editBtn);
 
         // Delete action button
         const deleteBtn = document.createElement("button");
@@ -482,21 +493,48 @@ function renderNotes() {
                 taskItem.style.width = "100%";
                 taskItem.style.textAlign = "left";
                 
+                const taskText = typeof task === "string" ? task : task.text;
                 const taskKey = `note_${note.id}_task_${index}`;
-                const isCompleted = localStorage.getItem(taskKey) === "true";
+                // Fallback to localStorage check if boolean field not defined (e.g. legacy notes)
+                const isCompleted = typeof task === "string" 
+                    ? (localStorage.getItem(taskKey) === "true") 
+                    : task.completed;
+                
                 if (isCompleted) {
                     taskItem.classList.add("checked");
                 }
 
                 taskItem.innerHTML = `
                     <div class="task-checkbox"><i class="fa-solid fa-check"></i></div>
-                    <span class="task-text">${task}</span>
+                    <span class="task-text">${taskText}</span>
                 `;
 
-                taskItem.addEventListener("click", (evt) => {
+                taskItem.addEventListener("click", async (evt) => {
                     evt.stopPropagation(); // prevent card expand toggle when checking a task
-                    const state = taskItem.classList.toggle("checked");
-                    localStorage.setItem(taskKey, state ? "true" : "false");
+                    const wasChecked = taskItem.classList.contains("checked");
+                    const isCheckedNow = !wasChecked;
+                    taskItem.classList.toggle("checked", isCheckedNow);
+                    
+                    // Update object in memory
+                    if (typeof task === "string") {
+                        note.tasks[index] = { text: task, completed: isCheckedNow };
+                    } else {
+                        note.tasks[index].completed = isCheckedNow;
+                    }
+                    localStorage.setItem(taskKey, isCheckedNow ? "true" : "false");
+                    
+                    // Sync to DB
+                    try {
+                        const base = window.API_BASE || "";
+                        const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
+                        await fetch(`${base}/api/notes/${note.id}${queryParams}`, {
+                            method: "PUT",
+                            headers: getHeaders(),
+                            body: JSON.stringify({ tasks: note.tasks })
+                        });
+                    } catch (e) {
+                        console.error("Failed to sync checklist checkbox to DB:", e);
+                    }
                     
                     if (tg.HapticFeedback) {
                         tg.HapticFeedback.impactOccurred("light");
@@ -581,6 +619,191 @@ searchClear.addEventListener("click", () => {
 });
 
 
+
+// Note Editor Modal elements
+const editorModal = document.getElementById("note-editor-modal");
+const closeEditorBtn = document.getElementById("close-editor-btn");
+const noteEditorForm = document.getElementById("note-editor-form");
+const editorTitle = document.getElementById("editor-note-title");
+const editorSummary = document.getElementById("editor-note-summary");
+const editorCategory = document.getElementById("editor-note-category");
+const editorReminder = document.getElementById("editor-note-reminder");
+const editorTasksList = document.getElementById("editor-tasks-list");
+const editorAddTaskBtn = document.getElementById("editor-add-task-btn");
+const createNoteBtn = document.getElementById("create-note-btn");
+const editorModalTitleLabel = document.getElementById("note-editor-title");
+
+let editorMode = "create"; // "create" or "edit"
+let editingNoteId = null;
+
+// Populate category options in select element
+function populateEditorCategoryOptions(selectedCategoryName = "") {
+    if (!editorCategory) return;
+    editorCategory.innerHTML = "";
+    categoriesList.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat.name;
+        opt.innerText = cat.name;
+        if (cat.name === selectedCategoryName) {
+            opt.selected = true;
+        }
+        editorCategory.appendChild(opt);
+    });
+}
+
+// Add editable checklist task row inside modal
+function addEditorTaskRow(text = "", completed = false) {
+    if (!editorTasksList) return;
+    
+    const row = document.createElement("div");
+    row.className = "editor-task-row";
+    row.innerHTML = `
+        <input type="checkbox" class="editor-task-check" ${completed ? "checked" : ""}>
+        <input type="text" class="editor-task-input" placeholder="Название задачи..." required value="${text.replace(/"/g, '&quot;')}">
+        <button type="button" class="editor-task-delete-btn"><i class="fa-solid fa-trash-can"></i></button>
+    `;
+    
+    row.querySelector(".editor-task-delete-btn").addEventListener("click", () => {
+        row.remove();
+    });
+    
+    editorTasksList.appendChild(row);
+}
+
+// Open Editor in CREATE mode
+function openEditorForCreate() {
+    editorMode = "create";
+    editingNoteId = null;
+    if (editorModalTitleLabel) editorModalTitleLabel.innerText = "Новая заметка";
+    
+    editorTitle.value = "";
+    editorSummary.value = "";
+    editorReminder.value = "";
+    editorTasksList.innerHTML = "";
+    
+    populateEditorCategoryOptions();
+    addEditorTaskRow("", false); // add one default empty row
+    
+    editorModal.classList.add("active");
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+}
+
+// Open Editor in EDIT mode
+function openEditorForEdit(note) {
+    editorMode = "edit";
+    editingNoteId = note.id;
+    if (editorModalTitleLabel) editorModalTitleLabel.innerText = "Редактировать заметку";
+    
+    editorTitle.value = note.title || "";
+    editorSummary.value = note.summary || "";
+    
+    // Format reminder datetime to local format YYYY-MM-DDTHH:MM
+    if (note.reminder_at) {
+        const d = new Date(note.reminder_at);
+        const pad = (n) => n.toString().padStart(2, '0');
+        const localStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        editorReminder.value = localStr;
+    } else {
+        editorReminder.value = "";
+    }
+    
+    editorTasksList.innerHTML = "";
+    populateEditorCategoryOptions(note.category);
+    
+    if (note.tasks && note.tasks.length > 0) {
+        note.tasks.forEach(t => {
+            const text = typeof t === "string" ? t : t.text;
+            const completed = typeof t === "string" ? false : t.completed;
+            addEditorTaskRow(text, completed);
+        });
+    } else {
+        addEditorTaskRow("", false);
+    }
+    
+    editorModal.classList.add("active");
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+}
+
+function closeEditorModal() {
+    editorModal.classList.remove("active");
+}
+
+// Listeners
+if (createNoteBtn) {
+    createNoteBtn.addEventListener("click", openEditorForCreate);
+}
+if (closeEditorBtn) {
+    closeEditorBtn.addEventListener("click", closeEditorModal);
+}
+if (editorAddTaskBtn) {
+    editorAddTaskBtn.addEventListener("click", () => addEditorTaskRow("", false));
+}
+
+if (noteEditorForm) {
+    noteEditorForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const title = editorTitle.value.trim();
+        const summary = editorSummary.value.trim();
+        const category = editorCategory.value;
+        const reminderVal = editorReminder.value;
+        
+        const reminder_at = reminderVal ? new Date(reminderVal).toISOString() : null;
+        
+        // Build tasks array from DOM inputs
+        const tasks = [];
+        document.querySelectorAll("#editor-tasks-list .editor-task-row").forEach(row => {
+            const text = row.querySelector(".editor-task-input").value.trim();
+            const completed = row.querySelector(".editor-task-check").checked;
+            if (text) {
+                tasks.push({ text, completed });
+            }
+        });
+        
+        const payload = { title, summary, category, tasks, reminder_at };
+        
+        try {
+            const base = window.API_BASE || "";
+            const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
+            
+            if (editorMode === "create") {
+                const response = await fetch(`${base}/api/notes${queryParams}`, {
+                    method: "POST",
+                    headers: getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    const newNote = await response.json();
+                    notesList.unshift(newNote);
+                    closeEditorModal();
+                    renderNotes();
+                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+                } else {
+                    showAlert("Не удалось создать заметку.");
+                }
+            } else if (editorMode === "edit") {
+                const response = await fetch(`${base}/api/notes/${editingNoteId}${queryParams}`, {
+                    method: "PUT",
+                    headers: getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    const updatedNote = await response.json();
+                    // Update note in array memory
+                    notesList = notesList.map(n => n.id === editingNoteId ? updatedNote : n);
+                    closeEditorModal();
+                    renderNotes();
+                    if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+                } else {
+                    showAlert("Не удалось обновить заметку.");
+                }
+            }
+        } catch (err) {
+            console.error("Error saving note:", err);
+            showAlert("Ошибка при отправке данных на сервер.");
+        }
+    });
+}
 
 // Refresh button interaction
 refreshBtn.addEventListener("click", () => {

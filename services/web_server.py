@@ -96,13 +96,27 @@ async def get_notes(request: web.Request):
             
             notes_data = []
             for note in notes:
+                # Dynamically convert legacy string tasks array to objects array
+                formatted_tasks = []
+                if note.tasks:
+                    for t in note.tasks:
+                        if isinstance(t, str):
+                            formatted_tasks.append({"text": t, "completed": False})
+                        elif isinstance(t, dict):
+                            formatted_tasks.append({
+                                "text": t.get("text", ""),
+                                "completed": t.get("completed", False)
+                            })
+                
                 notes_data.append({
                     "id": note.id,
                     "title": note.title,
                     "original_text": note.original_text,
                     "summary": note.summary,
                     "category": note.category,
-                    "tasks": note.tasks,
+                    "tasks": formatted_tasks,
+                    "reminder_at": note.reminder_at.isoformat() if note.reminder_at else None,
+                    "reminder_sent": note.reminder_sent,
                     "created_at": note.created_at.isoformat()
                 })
             
@@ -132,6 +146,117 @@ async def remove_note(request: web.Request):
                 return web.json_response({"error": "Note not found"}, status=404)
     except Exception as e:
         logger.error(f"Error deleting note {note_id} for WebApp: {e}", exc_info=True)
+        return web.json_response({"error": "Internal Server Error"}, status=500)
+
+
+async def create_note_api(request: web.Request):
+    """API endpoint: POST /api/notes"""
+    user = get_authenticated_user(request)
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
+    
+    user_id = user["id"]
+    try:
+        data = await request.json()
+        title = data.get("title", "")
+        summary = data.get("summary", "")
+        category = data.get("category", "Повседневное")
+        tasks = data.get("tasks", [])
+        original_text = data.get("original_text", "Создано вручную")
+        
+        reminder_at = None
+        reminder_at_raw = data.get("reminder_at")
+        if reminder_at_raw:
+            from datetime import datetime
+            reminder_at = datetime.fromisoformat(reminder_at_raw.replace("Z", "+00:00"))
+            
+        async with request.app["db_session"]() as session:
+            from database.crud import create_note
+            note = await create_note(
+                session=session,
+                user_id=user_id,
+                title=title,
+                original_text=original_text,
+                summary=summary,
+                category=category,
+                tasks=tasks,
+                reminder_at=reminder_at
+            )
+            return web.json_response({
+                "id": note.id,
+                "title": note.title,
+                "original_text": note.original_text,
+                "summary": note.summary,
+                "category": note.category,
+                "tasks": note.tasks,
+                "reminder_at": note.reminder_at.isoformat() if note.reminder_at else None,
+                "created_at": note.created_at.isoformat()
+            })
+    except Exception as e:
+        logger.error(f"Error creating note manually: {e}", exc_info=True)
+        return web.json_response({"error": "Internal Server Error"}, status=500)
+
+
+async def update_note_api(request: web.Request):
+    """API endpoint: PUT /api/notes/{id}"""
+    user = get_authenticated_user(request)
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
+        
+    user_id = user["id"]
+    try:
+        note_id = int(request.match_info["id"])
+    except ValueError:
+        return web.json_response({"error": "Invalid note ID"}, status=400)
+        
+    try:
+        data = await request.json()
+        title = data.get("title")
+        summary = data.get("summary")
+        category = data.get("category")
+        tasks = data.get("tasks")
+        original_text = data.get("original_text")
+        
+        reminder_at_passed = "reminder_at" in data
+        reminder_at = None
+        if reminder_at_passed:
+            reminder_at_raw = data.get("reminder_at")
+            if reminder_at_raw:
+                from datetime import datetime
+                reminder_at = datetime.fromisoformat(reminder_at_raw.replace("Z", "+00:00"))
+                
+        async with request.app["db_session"]() as session:
+            from database.crud import update_note
+            # Build arguments dynamically to avoid overwriting with None
+            kwargs = {}
+            if title is not None: kwargs["title"] = title
+            if category is not None: kwargs["category"] = category
+            if summary is not None: kwargs["summary"] = summary
+            if tasks is not None: kwargs["tasks"] = tasks
+            if original_text is not None: kwargs["original_text"] = original_text
+            if reminder_at_passed: kwargs["reminder_at"] = reminder_at
+            
+            note = await update_note(
+                session=session,
+                user_id=user_id,
+                note_id=note_id,
+                **kwargs
+            )
+            if not note:
+                return web.json_response({"error": "Note not found"}, status=404)
+                
+            return web.json_response({
+                "id": note.id,
+                "title": note.title,
+                "original_text": note.original_text,
+                "summary": note.summary,
+                "category": note.category,
+                "tasks": note.tasks,
+                "reminder_at": note.reminder_at.isoformat() if note.reminder_at else None,
+                "created_at": note.created_at.isoformat()
+            })
+    except Exception as e:
+        logger.error(f"Error updating note {note_id}: {e}", exc_info=True)
         return web.json_response({"error": "Internal Server Error"}, status=500)
 
 
@@ -251,12 +376,12 @@ def create_webapp(bot) -> web.Application:
         if request.method == "OPTIONS":
             return web.Response(headers={
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "Authorization, Content-Type, Bypass-Tunnel-Reminder",
             })
         response = await handler(request)
         response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Bypass-Tunnel-Reminder"
         return response
 
@@ -277,6 +402,8 @@ def create_webapp(bot) -> web.Application:
     app.router.add_route("OPTIONS", "/api/avatar", lambda r: web.Response())
     
     app.router.add_get("/api/notes", get_notes)
+    app.router.add_post("/api/notes", create_note_api)
+    app.router.add_put("/api/notes/{id}", update_note_api)
     app.router.add_delete("/api/notes/{id}", remove_note)
     
     app.router.add_get("/api/categories", get_categories)

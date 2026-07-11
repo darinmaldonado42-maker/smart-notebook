@@ -38,6 +38,16 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
     summary = structured.get("summary", "Нет описания.")
     tasks = structured.get("tasks", [])
     
+    # Parse reminder date if present
+    reminder_at = None
+    reminder_at_raw = structured.get("reminder_at")
+    if reminder_at_raw:
+        try:
+            from datetime import datetime
+            reminder_at = datetime.fromisoformat(reminder_at_raw.replace("Z", "+00:00"))
+        except Exception as ex:
+            logger.error(f"Failed to parse reminder_at '{reminder_at_raw}': {ex}")
+            
     note = None
     was_updated = False
     
@@ -49,7 +59,8 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
             note_id=matched_note_id,
             new_summary=summary,
             append_tasks=tasks,
-            append_raw_text=raw_text
+            append_raw_text=raw_text,
+            reminder_at=reminder_at
         )
         if note:
             was_updated = True
@@ -63,7 +74,8 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
             original_text=raw_text,
             summary=summary,
             category=category,
-            tasks=tasks
+            tasks=tasks,
+            reminder_at=reminder_at
         )
         
     return note, was_updated

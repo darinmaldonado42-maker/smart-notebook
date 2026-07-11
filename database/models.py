@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, Integer, String, Text, DateTime, ForeignKey, Index, func, text
+from sqlalchemy import BigInteger, Integer, String, Text, DateTime, Boolean, ForeignKey, Index, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -27,7 +27,9 @@ class Note(Base):
     original_text: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
-    tasks: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default="[]")
+    tasks: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     user: Mapped["User"] = relationship("User", back_populates="notes")

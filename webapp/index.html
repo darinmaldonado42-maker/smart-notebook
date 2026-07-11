@@ -22,7 +22,10 @@
                     <p class="subtitle">Интеллектуальный блокнот</p>
                 </div>
             </div>
-            <button id="refresh-btn" class="icon-btn"><i class="fa-solid fa-rotate"></i></button>
+            <div class="header-actions">
+                <button id="create-note-btn" class="icon-btn" title="Создать заметку"><i class="fa-solid fa-plus"></i></button>
+                <button id="refresh-btn" class="icon-btn"><i class="fa-solid fa-rotate"></i></button>
+            </div>
         </header>
 
         <!-- Search Bar -->
@@ -109,6 +112,41 @@
                     <button type="submit" class="create-cat-submit-btn">Добавить категорию</button>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- Note Editor Modal -->
+    <div class="modal-overlay" id="note-editor-modal">
+        <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 id="note-editor-title">Новая заметка</h3>
+                <button class="modal-close-btn" id="close-editor-btn">&times;</button>
+            </div>
+            <form class="add-category-form" id="note-editor-form">
+                <div style="font-size: 12px; color: var(--hint-color);">Заголовок:</div>
+                <input type="text" id="editor-note-title" placeholder="Введите заголовок заметки" required maxlength="100">
+                
+                <div style="font-size: 12px; color: var(--hint-color); margin-top: 4px;">Суть / Описание:</div>
+                <textarea id="editor-note-summary" placeholder="Опишите главную суть заметки..." required style="width: 100%; min-height: 85px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; color: var(--text-color); font-size: 13.5px; font-family: inherit; outline: none; resize: vertical;"></textarea>
+                
+                <div style="font-size: 12px; color: var(--hint-color); margin-top: 4px;">Категория:</div>
+                <select id="editor-note-category" style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; color: var(--text-color); font-size: 13.5px; outline: none; margin-bottom: 8px;">
+                    <!-- Options populated via javascript dynamically -->
+                </select>
+                
+                <div style="font-size: 12px; color: var(--hint-color); margin-top: 4px;">Напомнить мне:</div>
+                <input type="datetime-local" id="editor-note-reminder" style="width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; color: var(--text-color); font-size: 13.5px; outline: none; color-scheme: dark; margin-bottom: 8px;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                    <div style="font-size: 12px; color: var(--hint-color);">Список задач:</div>
+                    <button type="button" id="editor-add-task-btn" style="background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); padding: 4px 8px; border-radius: 8px; font-size: 11px; color: var(--text-color); cursor: pointer;"><i class="fa-solid fa-plus"></i> Добавить задачу</button>
+                </div>
+                <div id="editor-tasks-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px; max-height: 150px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Task items added here dynamically -->
+                </div>
+                
+                <button type="submit" class="create-cat-submit-btn" style="margin-top: 16px;">Сохранить заметку</button>
+            </form>
         </div>
     </div>
 
