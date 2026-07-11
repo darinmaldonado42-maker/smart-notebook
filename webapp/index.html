@@ -9,7 +9,7 @@
     <!-- Google Fonts & FontAwesome -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
     <div id="app">
@@ -33,12 +33,8 @@
         </div>
 
         <!-- Category Filters -->
-        <div class="filters-container">
-            <button class="filter-capsule active" data-category="all">Все</button>
-            <button class="filter-capsule" data-category="Идея"><i class="fa-solid fa-lightbulb"></i> Идеи</button>
-            <button class="filter-capsule" data-category="Задача"><i class="fa-solid fa-list-check"></i> Задачи</button>
-            <button class="filter-capsule" data-category="Учеба"><i class="fa-solid fa-graduation-cap"></i> Учеба</button>
-            <button class="filter-capsule" data-category="Повседневное"><i class="fa-solid fa-house"></i> Повседневное</button>
+        <div class="filters-container" id="filters-container">
+            <!-- Dynamically populated via JS -->
         </div>
 
         <!-- Main Content -->
@@ -63,10 +59,33 @@
                 <!-- Injected via JavaScript -->
             </div>
         </main>
+
+        <!-- Categories Management Modal -->
+        <div class="modal-overlay" id="categories-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Управление категориями</h3>
+                    <button class="modal-close-btn" id="close-modal-btn">&times;</button>
+                </div>
+                <div class="category-manager-list" id="category-manager-list">
+                    <!-- Injected via JavaScript -->
+                </div>
+                <form class="add-category-form" id="add-category-form">
+                    <input type="text" id="new-category-name" placeholder="Название новой категории" required maxlength="20">
+                    <div class="color-selector" id="color-selector">
+                        <div class="color-option idea selected" data-color="idea"></div>
+                        <div class="color-option task" data-color="task"></div>
+                        <div class="color-option study" data-color="study"></div>
+                        <div class="color-option daily" data-color="daily"></div>
+                    </div>
+                    <button type="submit" class="create-cat-submit-btn">Добавить категорию</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- API base URL config (overridden on Timeweb deployment) -->
-    <script src="api_config.js?v=6"></script>
-    <script src="app.js?v=6"></script>
+    <script src="api_config.js?v=7"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

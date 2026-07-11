@@ -46,9 +46,16 @@ const user = tgUser || {
 
 document.getElementById("user-name").innerText = user.first_name || "Пользователь";
 
-// Set user avatar character if available
-if (user.first_name) {
-    document.getElementById("user-avatar").innerText = user.first_name.charAt(0);
+// Set user avatar securely from the Telegram Proxy API, fallback to letter initial
+const avatarEl = document.getElementById("user-avatar");
+if (user.id) {
+    avatarEl.innerHTML = `<img src="${window.API_BASE || ''}/api/avatar?user_id=${user.id}" alt="" onerror="fallbackAvatar()">`;
+} else {
+    fallbackAvatar();
+}
+
+function fallbackAvatar() {
+    avatarEl.innerHTML = user.first_name ? user.first_name.charAt(0) : "👤";
 }
 
 // DOM references
@@ -60,14 +67,12 @@ const searchClear = document.getElementById("search-clear");
 const refreshBtn = document.getElementById("refresh-btn");
 
 // Helper to determine category class names
-function getCategoryClass(category) {
-    switch (category) {
-        case "Идея": return "idea";
-        case "Задача": return "task";
-        case "Учеба": return "study";
-        case "Повседневное": return "daily";
-        default: return "daily";
-    }
+let categoriesList = [];
+
+// Helper to determine category color theme
+function getNoteCategoryColor(categoryName) {
+    const cat = categoriesList.find(c => c.name === categoryName);
+    return cat ? cat.color : "study"; // fallback to blue/study
 }
 
 // Loader UI toggle
@@ -93,10 +98,186 @@ function getHeaders() {
     return headers;
 }
 
+// Fetch categories from API
+async function loadCategories() {
+    try {
+        const base = window.API_BASE || "";
+        const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
+        const response = await fetch(`${base}/api/categories${queryParams}`, {
+            headers: getHeaders()
+        });
+        if (response.ok) {
+            const data = await response.json();
+            categoriesList = data.categories || [];
+            renderCategoriesUI();
+        }
+    } catch (e) {
+        console.error("Error loading categories:", e);
+    }
+}
+
+// Dynamically render filter capsules
+const filtersContainer = document.getElementById("filters-container");
+function renderCategoriesUI() {
+    if (!filtersContainer) return;
+    filtersContainer.innerHTML = "";
+    
+    // 1. "Все" filter button
+    const allBtn = document.createElement("button");
+    allBtn.className = `filter-capsule ${currentCategory === 'all' ? 'active' : ''}`;
+    allBtn.dataset.category = "all";
+    allBtn.innerText = "Все";
+    allBtn.addEventListener("click", () => selectCategory("all", allBtn));
+    filtersContainer.appendChild(allBtn);
+    
+    // 2. Custom category buttons
+    categoriesList.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = `filter-capsule ${currentCategory === cat.name ? 'active' : ''}`;
+        btn.dataset.category = cat.name;
+        
+        let iconHtml = "";
+        if (cat.color === "idea") iconHtml = `<i class="fa-solid fa-lightbulb"></i> `;
+        else if (cat.color === "study") iconHtml = `<i class="fa-solid fa-graduation-cap"></i> `;
+        else if (cat.color === "task") iconHtml = `<i class="fa-solid fa-list-check"></i> `;
+        else iconHtml = `<i class="fa-solid fa-house"></i> `;
+        
+        btn.innerHTML = `${iconHtml}${cat.name}`;
+        btn.addEventListener("click", () => selectCategory(cat.name, btn));
+        filtersContainer.appendChild(btn);
+    });
+    
+    // 3. "+" add/manage category button
+    const addBtn = document.createElement("button");
+    addBtn.className = "filter-capsule add-category-btn";
+    addBtn.innerHTML = `<i class="fa-solid fa-plus"></i>`;
+    addBtn.addEventListener("click", () => openCategoriesModal());
+    filtersContainer.appendChild(addBtn);
+}
+
+function selectCategory(catName, btnElement) {
+    document.querySelectorAll(".filter-capsule").forEach(c => c.classList.remove("active"));
+    btnElement.classList.add("active");
+    currentCategory = catName;
+    renderNotes();
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+}
+
+// Modal category manager
+const modal = document.getElementById("categories-modal");
+const closeModalBtn = document.getElementById("close-modal-btn");
+const categoryManagerList = document.getElementById("category-manager-list");
+const addCategoryForm = document.getElementById("add-category-form");
+const newCatNameInput = document.getElementById("new-category-name");
+
+let selectedColor = "idea";
+
+// Setup color option clicks in modal
+document.querySelectorAll(".color-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+        document.querySelectorAll(".color-option").forEach(o => o.classList.remove("selected"));
+        opt.classList.add("selected");
+        selectedColor = opt.dataset.color;
+    });
+});
+
+function openCategoriesModal() {
+    modal.classList.add("active");
+    renderCategoryManagerList();
+}
+
+function closeCategoriesModal() {
+    modal.classList.remove("active");
+}
+
+if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", closeCategoriesModal);
+}
+
+function renderCategoryManagerList() {
+    if (!categoryManagerList) return;
+    categoryManagerList.innerHTML = "";
+    categoriesList.forEach(cat => {
+        const item = document.createElement("div");
+        item.className = "category-manager-item";
+        item.innerHTML = `
+            <div class="category-item-label">
+                <div class="category-color-dot ${cat.color}"></div>
+                <span>${cat.name}</span>
+            </div>
+            <button class="delete-cat-btn" data-id="${cat.id}"><i class="fa-solid fa-trash-can"></i></button>
+        `;
+        item.querySelector(".delete-cat-btn").addEventListener("click", () => deleteCategory(cat.id));
+        categoryManagerList.appendChild(item);
+    });
+}
+
+async function deleteCategory(id) {
+    showConfirm("Удалить эту категорию? Заметки в ней останутся, но ИИ больше не будет относить новые задачи к этой категории.", async (confirmed) => {
+        if (!confirmed) return;
+        try {
+            const base = window.API_BASE || "";
+            const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
+            const response = await fetch(`${base}/api/categories/${id}${queryParams}`, {
+                method: "DELETE",
+                headers: getHeaders()
+            });
+            if (response.ok) {
+                categoriesList = categoriesList.filter(c => c.id !== id);
+                renderCategoryManagerList();
+                renderCategoriesUI();
+                renderNotes();
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            } else {
+                showAlert("Не удалось удалить категорию.");
+            }
+        } catch (e) {
+            console.error("Error deleting category:", e);
+        }
+    });
+}
+
+if (addCategoryForm) {
+    addCategoryForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = newCatNameInput.value.trim();
+        if (!name) return;
+        
+        if (categoriesList.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+            showAlert("Категория с таким именем уже существует!");
+            return;
+        }
+        
+        try {
+            const base = window.API_BASE || "";
+            const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
+            const response = await fetch(`${base}/api/categories${queryParams}`, {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({ name, color: selectedColor })
+            });
+            if (response.ok) {
+                const newCat = await response.json();
+                categoriesList.push(newCat);
+                newCatNameInput.value = "";
+                renderCategoryManagerList();
+                renderCategoriesUI();
+                if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+            } else {
+                showAlert("Не удалось добавить категорию.");
+            }
+        } catch (err) {
+            console.error("Error creating category:", err);
+        }
+    });
+}
+
 // Fetch notes from DB
 async function loadNotes() {
     showLoading(true);
     try {
+        await loadCategories(); // Load custom categories first for mapping
+        
         const base = window.API_BASE || "";
         const queryParams = tg.initData ? "" : `?user_id=${user.id}`;
         const response = await fetch(`${base}/api/notes${queryParams}`, {
@@ -200,7 +381,7 @@ function renderNotes() {
 
         // Card container
         const card = document.createElement("div");
-        card.className = `note-card cat-${getCategoryClass(note.category)}`;
+        card.className = `note-card cat-color-${getNoteCategoryColor(note.category)}`;
         card.dataset.id = note.id;
 
         // Card header
@@ -365,20 +546,7 @@ searchClear.addEventListener("click", () => {
     renderNotes();
 });
 
-// Category pills interaction
-const capsules = document.querySelectorAll(".filter-capsule");
-capsules.forEach(capsule => {
-    capsule.addEventListener("click", () => {
-        capsules.forEach(c => c.classList.remove("active"));
-        capsule.classList.add("active");
-        currentCategory = capsule.dataset.category;
-        renderNotes();
-        
-        if (tg.HapticFeedback) {
-            tg.HapticFeedback.impactOccurred("light");
-        }
-    });
-});
+
 
 // Refresh button interaction
 refreshBtn.addEventListener("click", () => {

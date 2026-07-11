@@ -16,6 +16,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     notes: Mapped[list["Note"]] = relationship("Note", back_populates="user", cascade="all, delete-orphan")
+    categories: Mapped[list["Category"]] = relationship("Category", back_populates="user", cascade="all, delete-orphan")
 
 class Note(Base):
     __tablename__ = "notes"
@@ -39,3 +40,14 @@ class Note(Base):
             postgresql_using="gin"
         ),
     )
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, server_default="study") # e.g. "idea", "task", "study", "daily"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="categories")

@@ -62,7 +62,7 @@ async def main():
 
     # 6. Initialize and start the aiohttp Web Application for Telegram WebApp
     logger.info("Initializing aiohttp web server for Telegram WebApp...")
-    app = create_webapp()
+    app = create_webapp(bot)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, settings.web_host, settings.web_port)

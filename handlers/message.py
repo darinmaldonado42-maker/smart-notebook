@@ -3,42 +3,78 @@ import tempfile
 import logging
 from aiogram import Router, F, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.crud import create_note
+from database.crud import create_note, get_user_categories, update_note_append
 from database.models import Note
 from services.openai import openai_service
 
 logger = logging.getLogger(__name__)
 router = Router(name="message")
 
-async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: str) -> Note:
-    """Sends raw text to GPT-4o-mini to get a structured JSON and saves it in DB."""
-    structured = await openai_service.structure_text(raw_text)
+async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: str) -> tuple[Note, bool]:
+    """
+    Sends raw text along with recent notes and custom categories to LLM,
+    then saves as a new note or appends to an existing note.
+    Returns a tuple: (note, was_updated)
+    """
+    # 1. Fetch user categories
+    categories = await get_user_categories(session, user_id)
+    category_names = [c.name for c in categories]
     
+    # 2. Fetch last 10 notes to check for semantic matching
+    stmt = select(Note).where(Note.user_id == user_id).order_by(Note.created_at.desc()).limit(10)
+    result = await session.execute(stmt)
+    recent_notes_objs = result.scalars().all()
+    recent_notes = [{"id": n.id, "title": n.title, "summary": n.summary} for n in recent_notes_objs]
+    
+    # 3. Structure text via OpenAI service
+    structured = await openai_service.structure_text(raw_text, categories=category_names, recent_notes=recent_notes)
+    
+    matched_note_id = structured.get("matched_note_id")
     title = structured.get("title", "Без названия")
     category = structured.get("category", "Повседневное")
     summary = structured.get("summary", "Нет описания.")
     tasks = structured.get("tasks", [])
     
-    # Save original text along with AI summary, category and tasks
-    note = await create_note(
-        session=session,
-        user_id=user_id,
-        title=title,
-        original_text=raw_text,
-        summary=summary,
-        category=category,
-        tasks=tasks
-    )
-    return note
+    note = None
+    was_updated = False
+    
+    if matched_note_id:
+        # Semantically matched: append to existing note
+        note = await update_note_append(
+            session=session,
+            user_id=user_id,
+            note_id=matched_note_id,
+            new_summary=summary,
+            append_tasks=tasks,
+            append_raw_text=raw_text
+        )
+        if note:
+            was_updated = True
+            
+    if not note:
+        # Create a new note
+        note = await create_note(
+            session=session,
+            user_id=user_id,
+            title=title,
+            original_text=raw_text,
+            summary=summary,
+            category=category,
+            tasks=tasks
+        )
+        
+    return note, was_updated
 
-async def render_and_send_note(message: Message, note: Note, status_msg: Message):
+async def render_and_send_note(message: Message, note: Note, status_msg: Message, was_updated: bool = False):
     """Formats and edits status message with the saved note info and inline buttons."""
     tasks_text = "\n".join(f"• {task}" for task in note.tasks) if note.tasks else "Задачи отсутствуют."
+    status_header = "обновлена" if was_updated else "сохранена"
     
     response_text = (
-        f"✅ <b>Заметка успешно сохранена!</b>\n\n"
+        f"✅ <b>Заметка успешно {status_header}!</b>\n\n"
         f"📌 <b>Название:</b> {note.title}\n"
         f"📂 <b>Категория:</b> #{note.category}\n\n"
         f"🎯 <b>Главное:</b>\n{note.summary}\n\n"
@@ -118,8 +154,8 @@ async def handle_voice_message(message: Message, session: AsyncSession, bot: Bot
     # Process and save transcript
     await status_msg.edit_text("🧠 <i>Выделяю суть и задачи (GPT-4o-mini)...</i>", parse_mode="HTML")
     try:
-        note = await process_and_save_note(session, user_id, raw_text)
-        await render_and_send_note(message, note, status_msg)
+        note, was_updated = await process_and_save_note(session, user_id, raw_text)
+        await render_and_send_note(message, note, status_msg, was_updated)
     except Exception as e:
         logger.error(f"Error in GPT or DB storage: {e}", exc_info=True)
         await status_msg.edit_text(
@@ -139,8 +175,8 @@ async def handle_text_message(message: Message, session: AsyncSession):
     status_msg = await message.answer("🧠 <i>Выделяю суть и задачи (GPT-4o-mini)...</i>", parse_mode="HTML")
     
     try:
-        note = await process_and_save_note(session, user_id, raw_text)
-        await render_and_send_note(message, note, status_msg)
+        note, was_updated = await process_and_save_note(session, user_id, raw_text)
+        await render_and_send_note(message, note, status_msg, was_updated)
     except Exception as e:
         logger.error(f"Error in structuring text or saving note: {e}", exc_info=True)
         await status_msg.edit_text(

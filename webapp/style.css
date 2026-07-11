@@ -554,3 +554,171 @@ main {
     transform: scale(0.9) !important;
     pointer-events: none;
 }
+
+/* Avatar Image */
+.avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    object-fit: cover;
+}
+
+/* Category Color-based styling mapping */
+.note-card.cat-color-idea { --theme-color: var(--accent-idea); }
+.note-card.cat-color-task { --theme-color: var(--accent-task); }
+.note-card.cat-color-study { --theme-color: var(--accent-study); }
+.note-card.cat-color-daily { --theme-color: var(--accent-daily); }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+.modal-content {
+    background: var(--secondary-bg-color);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+    box-shadow: var(--glass-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transform: scale(0.9);
+    transition: transform 0.3s;
+}
+.modal-overlay.active .modal-content {
+    transform: scale(1);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-header h3 {
+    font-family: var(--font-title);
+    font-size: 18px;
+    font-weight: 600;
+}
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--hint-color);
+    font-size: 20px;
+    cursor: pointer;
+}
+.category-manager-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.category-manager-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+}
+.category-item-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+}
+.category-color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.category-color-dot.idea { background: var(--accent-idea); }
+.category-color-dot.task { background: var(--accent-task); }
+.category-color-dot.study { background: var(--accent-study); }
+.category-color-dot.daily { background: var(--accent-daily); }
+
+.delete-cat-btn {
+    background: transparent;
+    border: none;
+    color: var(--hint-color);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.delete-cat-btn:hover {
+    color: var(--accent-daily);
+}
+.add-category-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 16px;
+}
+.add-category-form input {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--text-color);
+    font-size: 13.5px;
+    outline: none;
+}
+.color-selector {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 4px 0;
+}
+.color-option {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+}
+.color-option:hover {
+    transform: scale(1.1);
+}
+.color-option.selected {
+    border-color: #ffffff;
+    transform: scale(1.1);
+}
+.color-option.idea { background: var(--accent-idea); }
+.color-option.task { background: var(--accent-task); }
+.color-option.study { background: var(--accent-study); }
+.color-option.daily { background: var(--accent-daily); }
+
+.create-cat-submit-btn {
+    background: var(--button-color);
+    color: var(--button-text-color);
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.create-cat-submit-btn:hover {
+    background: #2563eb;
+}

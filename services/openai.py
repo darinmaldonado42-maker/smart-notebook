@@ -29,27 +29,39 @@ class OpenAIService:
             logger.error(f"Failed to transcribe audio via Whisper API: {e}", exc_info=True)
             raise RuntimeError("Ошибка при транскрибации аудио") from e
 
-    async def structure_text(self, raw_text: str) -> dict:
+    async def structure_text(self, raw_text: str, categories: list[str] = None, recent_notes: list[dict] = None) -> dict:
         """
         Uses configured LLM model to analyze and structure user's raw thoughts into JSON.
-        Returns a dict with: 'category', 'summary', 'tasks', and 'raw_clean_text'.
+        Compares with recent notes to merge/append tasks semantically, and matches user categories.
         """
+        categories_str = ", ".join(f"'{c}'" for c in categories) if categories else "'Идея', 'Учеба', 'Повседневное'"
+        
+        notes_str = ""
+        if recent_notes:
+            notes_str = "\n".join(f"- ID: {n['id']}, Заголовок: '{n['title']}', Суть: '{n['summary']}'" for n in recent_notes)
+        else:
+            notes_str = "Нет существующих заметок."
+
         system_prompt = (
             "Ты ассистент-структуризатор. Пользователь наговаривает поток мыслей.\n"
             "Твоя задача:\n"
-            "1. Сгенерировать короткий и емкий заголовок для заметки (2-5 слов в именительном падеже, например: 'Поход в гости к маме', 'Идея мобильной игры', 'Подготовка к экзамену').\n"
-            "2. Убрать мусор и слова-паразиты, выделить главную мысль (summary).\n"
-            "3. Вытащить конкретные задачи в маркированный список (tasks).\n"
-            "4. Присвоить одну из категорий: 'Идея', 'Задача', 'Учеба', 'Повседневное'.\n\n"
+            "1. Сравнить новую мысль со списком существующих заметок пользователя. Если новая мысль логически/тематически продолжает или дополняет одну из существующих заметок, выбери её.\n"
+            "2. Сгенерировать короткий и емкий заголовок для заметки (если создается новая заметка) или вернуть заголовок существующей (если дополняется существующая). Заголовок должен быть 2-5 слов в именительном падеже.\n"
+            "3. Убрать мусор и слова-паразиты, выделить главную мысль (summary). Если мысль дополняет существующую заметку, сгенерируй обновленный summary, объединяющий старую суть и новую мысль.\n"
+            "4. Вытащить новые конкретные задачи в маркированный список (tasks).\n"
+            "5. Присвоить одну из доступных категорий: {categories_str}.\n\n"
+            "Список существующих заметок пользователя:\n"
+            "{notes_str}\n\n"
             "Верни ответ строго в формате JSON:\n"
-            "{\n"
-            "  \"title\": string,\n"
-            "  \"category\": string,\n"
-            "  \"summary\": string,\n"
-            "  \"tasks\": list of strings,\n"
+            "{{\n"
+            "  \"matched_note_id\": int or null,  // ID существующей заметки, если новая мысль логически дополняет её, иначе null\n"
+            "  \"title\": string,                 // заголовок заметки\n"
+            "  \"category\": string,              // категория заметки (выбери одну из: {categories_str})\n"
+            "  \"summary\": string,               // суть (обновленный summary для существующей или новый summary для новой)\n"
+            "  \"tasks\": list of strings,        // только НОВЫЕ задачи, извлеченные из сообщения, которые нужно добавить/создать\n"
             "  \"raw_clean_text\": string\n"
-            "}"
-        )
+            "}}"
+        ).format(categories_str=categories_str, notes_str=notes_str)
         
         try:
             response = await self.client.chat.completions.create(
@@ -67,10 +79,15 @@ class OpenAIService:
                 
             data = json.loads(content)
             # Validate required JSON keys
-            required_keys = ["title", "category", "summary", "tasks", "raw_clean_text"]
+            required_keys = ["title", "category", "summary", "tasks", "raw_clean_text", "matched_note_id"]
             for key in required_keys:
                 if key not in data:
-                    data[key] = "" if key != "tasks" else []
+                    if key == "tasks":
+                        data[key] = []
+                    elif key == "matched_note_id":
+                        data[key] = None
+                    else:
+                        data[key] = ""
             
             return data
         except Exception as e:

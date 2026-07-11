@@ -135,7 +135,113 @@ async def remove_note(request: web.Request):
         return web.json_response({"error": "Internal Server Error"}, status=500)
 
 
-def create_webapp() -> web.Application:
+async def get_avatar(request: web.Request):
+    """Proxy avatar from Telegram Bot API securely."""
+    user_id_str = request.query.get("user_id")
+    if not user_id_str:
+        return web.Response(status=400, text="Missing user_id", headers={"Access-Control-Allow-Origin": "*"})
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
+        return web.Response(status=400, text="Invalid user_id", headers={"Access-Control-Allow-Origin": "*"})
+        
+    bot = request.app.get("bot")
+    if not bot:
+        return web.Response(status=500, text="Bot not initialized", headers={"Access-Control-Allow-Origin": "*"})
+        
+    try:
+        photos = await bot.get_user_profile_photos(user_id=user_id, limit=1)
+        if photos and photos.photos:
+            file_id = photos.photos[0][0].file_id
+            file_info = await bot.get_file(file_id)
+            
+            # Download file bytes
+            from io import BytesIO
+            dest = BytesIO()
+            await bot.download(file_info, destination=dest)
+            dest.seek(0)
+            
+            return web.Response(
+                body=dest.read(),
+                content_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                    "Access-Control-Allow-Origin": "*"
+                }
+            )
+    except Exception as e:
+        logger.error(f"Error serving avatar for user {user_id}: {e}")
+        
+    return web.Response(status=404, text="Avatar not found", headers={"Access-Control-Allow-Origin": "*"})
+
+
+async def get_categories(request: web.Request):
+    """GET /api/categories"""
+    user = get_authenticated_user(request)
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
+    user_id = user["id"]
+    
+    try:
+        async with request.app["db_session"]() as session:
+            from database.crud import get_user_categories
+            categories = await get_user_categories(session, user_id)
+            data = [{"id": c.id, "name": c.name, "color": c.color} for c in categories]
+            return web.json_response({"categories": data})
+    except Exception as e:
+        logger.error(f"Error getting categories for user {user_id}: {e}", exc_info=True)
+        return web.json_response({"error": "Internal Server Error"}, status=500)
+
+
+async def create_category_api(request: web.Request):
+    """POST /api/categories"""
+    user = get_authenticated_user(request)
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
+    user_id = user["id"]
+    
+    try:
+        req_data = await request.json()
+        name = req_data.get("name")
+        color = req_data.get("color")
+        if not name or not color:
+            return web.json_response({"error": "Missing name or color"}, status=400)
+            
+        async with request.app["db_session"]() as session:
+            from database.crud import create_user_category
+            cat = await create_user_category(session, user_id, name, color)
+            return web.json_response({"id": cat.id, "name": cat.name, "color": cat.color})
+    except Exception as e:
+        logger.error(f"Error creating category for user {user_id}: {e}", exc_info=True)
+        return web.json_response({"error": "Internal Server Error"}, status=500)
+
+
+async def remove_category_api(request: web.Request):
+    """DELETE /api/categories/{id}"""
+    user = get_authenticated_user(request)
+    if not user:
+        return web.json_response({"error": "Unauthorized"}, status=401)
+    user_id = user["id"]
+    
+    try:
+        cat_id = int(request.match_info["id"])
+    except ValueError:
+        return web.json_response({"error": "Invalid category ID"}, status=400)
+        
+    try:
+        async with request.app["db_session"]() as session:
+            from database.crud import delete_user_category
+            success = await delete_user_category(session, user_id, cat_id)
+            if success:
+                return web.json_response({"status": "success"})
+            else:
+                return web.json_response({"error": "Category not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Error deleting category {cat_id} for user {user_id}: {e}", exc_info=True)
+        return web.json_response({"error": "Internal Server Error"}, status=500)
+
+
+def create_webapp(bot) -> web.Application:
     """Configures and returns the web server Application instance."""
     
     @web.middleware
@@ -144,27 +250,37 @@ def create_webapp() -> web.Application:
         if request.method == "OPTIONS":
             return web.Response(headers={
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, DELETE, OPTIONS",
+                "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "Authorization, Content-Type, Bypass-Tunnel-Reminder",
             })
         response = await handler(request)
         response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Bypass-Tunnel-Reminder"
         return response
 
     app = web.Application(middlewares=[cors_middleware])
     app["db_session"] = async_session
+    app["bot"] = bot
     
     # Routes
     app.router.add_get("/", serve_index)
     app.router.add_get("/style.css", serve_css)
     app.router.add_get("/app.js", serve_js)
     app.router.add_get("/api_config.js", serve_api_config)
+    
     app.router.add_route("OPTIONS", "/api/notes", lambda r: web.Response())
     app.router.add_route("OPTIONS", "/api/notes/{id}", lambda r: web.Response())
+    app.router.add_route("OPTIONS", "/api/categories", lambda r: web.Response())
+    app.router.add_route("OPTIONS", "/api/categories/{id}", lambda r: web.Response())
+    app.router.add_route("OPTIONS", "/api/avatar", lambda r: web.Response())
     
     app.router.add_get("/api/notes", get_notes)
     app.router.add_delete("/api/notes/{id}", remove_note)
+    
+    app.router.add_get("/api/categories", get_categories)
+    app.router.add_post("/api/categories", create_category_api)
+    app.router.add_delete("/api/categories/{id}", remove_category_api)
+    app.router.add_get("/api/avatar", get_avatar)
     
     return app
