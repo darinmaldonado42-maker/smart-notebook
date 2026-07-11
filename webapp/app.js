@@ -75,9 +75,32 @@ function getNoteCategoryColor(categoryName) {
     return cat ? cat.color : "study"; // fallback to blue/study
 }
 
+function getDefaultIconForColor(color) {
+    switch (color) {
+        case "idea": return "lightbulb";
+        case "study": return "graduation-cap";
+        case "task": return "list-check";
+        case "daily": return "house";
+        case "work": return "briefcase";
+        case "finance": return "wallet";
+        case "health": return "heart-pulse";
+        case "shopping": return "cart-shopping";
+        case "creative": return "palette";
+        case "travel": return "plane";
+        default: return "tag";
+    }
+}
+
+function getCategoryIcon(cat) {
+    if (cat.icon && cat.icon !== "tag") {
+        return cat.icon;
+    }
+    return getDefaultIconForColor(cat.color);
+}
+
 function getNoteCategoryIcon(categoryName) {
     const cat = categoriesList.find(c => c.name === categoryName);
-    return cat ? cat.icon : "tag"; // fallback to tag icon
+    return cat ? getCategoryIcon(cat) : "tag"; // fallback to tag icon
 }
 
 // Loader UI toggle
@@ -141,32 +164,10 @@ function renderCategoriesUI() {
         btn.className = `filter-capsule ${currentCategory === cat.name ? 'active' : ''}`;
         btn.dataset.category = cat.name;
         
-        let iconHtml = "";
-        switch (cat.color) {
-            case "idea": iconHtml = `<i class="fa-solid fa-lightbulb"></i> `; break;
-            case "study": iconHtml = `<i class="fa-solid fa-graduation-cap"></i> `; break;
-            case "task": iconHtml = `<i class="fa-solid fa-list-check"></i> `; break;
-            case "daily": iconHtml = `<i class="fa-solid fa-house"></i> `; break;
-            case "work": iconHtml = `<i class="fa-solid fa-briefcase"></i> `; break;
-            case "finance": iconHtml = `<i class="fa-solid fa-wallet"></i> `; break;
-            case "health": iconHtml = `<i class="fa-solid fa-heart-pulse"></i> `; break;
-            case "shopping": iconHtml = `<i class="fa-solid fa-cart-shopping"></i> `; break;
-            case "creative": iconHtml = `<i class="fa-solid fa-palette"></i> `; break;
-            case "travel": iconHtml = `<i class="fa-solid fa-plane"></i> `; break;
-            default: iconHtml = `<i class="fa-solid fa-tag"></i> `; break;
-        }
-        
-        btn.innerHTML = `${iconHtml}${cat.name}`;
+        btn.innerHTML = `<i class="fa-solid fa-${getCategoryIcon(cat)}"></i> ${cat.name}`;
         btn.addEventListener("click", () => selectCategory(cat.name, btn));
         filtersContainer.appendChild(btn);
     });
-    
-    // 3. "+" add/manage category button
-    const addBtn = document.createElement("button");
-    addBtn.className = "filter-capsule add-category-btn";
-    addBtn.innerHTML = `<i class="fa-solid fa-plus"></i>`;
-    addBtn.addEventListener("click", () => openCategoriesModal());
-    filtersContainer.appendChild(addBtn);
 }
 
 function selectCategory(catName, btnElement) {
@@ -232,7 +233,7 @@ function renderCategoryManagerList() {
         item.innerHTML = `
             <div class="category-item-label">
                 <span class="category-icon-preview ${cat.color}" style="color: var(--accent-${cat.color}); font-size: 14px; width: 20px; text-align: center; margin-right: 4px;">
-                    <i class="fa-solid fa-${cat.icon || 'tag'}"></i>
+                    <i class="fa-solid fa-${getCategoryIcon(cat)}"></i>
                 </span>
                 <span>${cat.name}</span>
             </div>
