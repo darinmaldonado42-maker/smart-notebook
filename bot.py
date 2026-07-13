@@ -286,16 +286,18 @@ async def handle_text(message: types.Message):
         return
     await execute_query_pipeline(message, query)
 
-# Health check handler for Railway deployment
-async def health_check(request):
+# Combined handler for root health check and WebSocket upgrades
+async def root_handler(request):
+    if request.headers.get("Upgrade", "").lower() == "websocket":
+        return await websocket_handler(request)
     return web.Response(text="OK")
 
 # Concurrent Web Server + Telegram Polling
 async def main():
     # Setup aiohttp Server
     app = web.Application()
-    app.router.add_get('/', health_check)
-    app.router.add_get('/ws', websocket_handler)
+    app.router.add_get('/', root_handler)
+    app.router.add_get('/ws', websocket_handler) # Keep /ws route as fallback
     
     runner = web.AppRunner(app)
     await runner.setup()

@@ -34,11 +34,11 @@ if not BOT_TOKEN:
 
 # Convert http/https server URL to WebSocket ws/wss URL
 if SERVER_URL.startswith("https://"):
-    WS_URL = SERVER_URL.replace("https://", "wss://") + "/ws"
+    WS_URL = SERVER_URL.replace("https://", "wss://") + "/"
 elif SERVER_URL.startswith("http://"):
-    WS_URL = SERVER_URL.replace("http://", "ws://") + "/ws"
+    WS_URL = SERVER_URL.replace("http://", "ws://") + "/"
 else:
-    WS_URL = f"ws://{SERVER_URL}/ws"
+    WS_URL = f"ws://{SERVER_URL}/"
 
 # Thread-safe queue for Tkinter GUI updates
 gui_queue = queue.Queue()
@@ -240,7 +240,7 @@ class PCControlGUI:
                     elif val == "disconnected":
                         err = msg.get("err", "")
                         self.status_label.config(text="🔴 Статус: Оффлайн", foreground="red")
-                        self.log(f"Потеряно соединение с сервером. Повтор...")
+                        self.log(f"Ошибка соединения: {err}. Повтор...")
                         
                 elif msg_type == "log":
                     self.log(msg.get("val", ""))
