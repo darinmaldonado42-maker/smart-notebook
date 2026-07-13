@@ -31,7 +31,7 @@ OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 OPENAI_WHISPER_MODEL = os.getenv("OPENAI_WHISPER_MODEL", "whisper-1")
 
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
-WEB_PORT = int(os.getenv("PORT", "8080"))
+WEB_PORT = 8080
 
 # Initialize Bot & Dispatcher
 bot = Bot(token=BOT_TOKEN)
