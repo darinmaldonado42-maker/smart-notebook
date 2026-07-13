@@ -16,6 +16,16 @@ import speech_recognition as sr
 import openai
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
+import ctypes
+
+# Set Windows process DPI awareness
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 
 # Import the local executor
 import executor

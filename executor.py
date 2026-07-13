@@ -5,9 +5,19 @@ import subprocess
 import webbrowser
 import tempfile
 import logging
+import ctypes
 from PIL import ImageGrab
 import pyautogui
 import pygetwindow as gw
+
+# Set Windows process DPI awareness to ensure accurate pixel coordinates
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2) # PROCESS_PER_MONITOR_DPI_AWARE
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -346,8 +356,8 @@ def play_my_wave(target_screen: str = "main") -> str:
             time.sleep(0.5)
             
             # Click exactly in the center of 'My Wave' banner relative to window left and top
-            click_x = win.left + 725
-            click_y = win.top + 360
+            click_x = win.left + 1249
+            click_y = win.top + 417
             pyautogui.click(click_x, click_y)
             return "Запустил 'Мою волну' на Яндекс.Музыке (клик по баннеру)."
         else:
