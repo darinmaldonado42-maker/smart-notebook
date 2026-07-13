@@ -325,6 +325,68 @@ def restart_pc(delay: int = 10) -> str:
     except Exception as e:
         return f"Ошибка: {e}"
 
+def play_my_wave(target_screen: str = "main") -> str:
+    """Opens Yandex Music, waits 1.5s, focuses browser, and clicks banner dynamically based on window position."""
+    try:
+        # 1. Open Yandex Music
+        open_url("https://music.yandex.ru/home", target_screen)
+        time.sleep(1.5)
+        
+        # 2. Find and focus browser window
+        win = None
+        for w in gw.getAllWindows():
+            if w.title and any(k in w.title.lower() for k in ['yandex', 'яндекс', 'chrome', 'youtube', 'music', 'opera', 'edge', 'firefox', 'браузер']):
+                win = w
+                break
+                
+        if win:
+            if win.isMinimized:
+                win.restore()
+            win.activate()
+            time.sleep(0.5)
+            
+            # Click exactly in the center of 'My Wave' banner relative to window left and top
+            click_x = win.left + 725
+            click_y = win.top + 360
+            pyautogui.click(click_x, click_y)
+            return "Запустил 'Мою волну' на Яндекс.Музыке (клик по баннеру)."
+        else:
+            return "Окно браузера не найдено для запуска воспроизведения."
+    except Exception as e:
+        logger.error(f"Failed to play My Wave: {e}", exc_info=True)
+        return f"Не удалось включить Мою волну: {e}"
+
+def play_first_youtube_video(target_screen: str = "main") -> str:
+    """Opens YouTube, waits 2.0s, focuses browser, and clicks the first video relative to window position."""
+    try:
+        # 1. Open YouTube
+        open_url("https://www.youtube.com", target_screen)
+        time.sleep(2.0)
+        
+        # 2. Find and focus browser window
+        win = None
+        for w in gw.getAllWindows():
+            if w.title and any(k in w.title.lower() for k in ['youtube', 'yandex', 'яндекс', 'chrome', 'opera', 'edge', 'firefox', 'браузер']):
+                win = w
+                break
+                
+        if win:
+            if win.isMinimized:
+                win.restore()
+            win.activate()
+            time.sleep(0.5)
+            
+            # Click first video relative to window left and top
+            click_x = win.left + 280
+            click_y = win.top + 350
+            pyautogui.click(click_x, click_y)
+            return "Открыл первое видео на YouTube."
+        else:
+            return "Окно YouTube не найдено."
+    except Exception as e:
+        logger.error(f"Failed to play first YouTube video: {e}", exc_info=True)
+        return f"Не удалось открыть первое видео: {e}"
+
 def execute_command_dict(cmd_data: dict) -> tuple[str, str]:
     """Decodes JSON and executes the command on the Windows PC."""
     command = cmd_data.get("command", "").lower()
@@ -352,6 +414,14 @@ def execute_command_dict(cmd_data: dict) -> tuple[str, str]:
     elif command == "yandex_music":
         query = args.get("query", "")
         res = open_yandex_music(query, target_screen)
+        return res, ""
+        
+    elif command == "play_my_wave":
+        res = play_my_wave(target_screen)
+        return res, ""
+        
+    elif command == "play_first_youtube_video":
+        res = play_first_youtube_video(target_screen)
         return res, ""
         
     elif command == "media_control":
