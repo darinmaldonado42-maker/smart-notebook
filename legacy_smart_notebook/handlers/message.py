@@ -1,8 +1,11 @@
 import os
 import tempfile
 import logging
+import aiohttp
 from aiogram import Router, F, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +15,9 @@ from services.openai import openai_service
 
 logger = logging.getLogger(__name__)
 router = Router(name="message")
+
+class LocationStates(StatesGroup):
+    WaitingForCity = State()
 
 async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: str) -> tuple[Note, bool]:
     """
@@ -37,6 +43,7 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
     category = structured.get("category", "Повседневное")
     summary = structured.get("summary", "Нет описания.")
     tasks = structured.get("tasks", [])
+    is_outdoor = structured.get("is_outdoor", False)
     
     # Parse reminder date if present
     reminder_at = None
@@ -60,7 +67,8 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
             new_summary=summary,
             append_tasks=tasks,
             append_raw_text=raw_text,
-            reminder_at=reminder_at
+            reminder_at=reminder_at,
+            is_outdoor=is_outdoor
         )
         if note:
             was_updated = True
@@ -75,7 +83,8 @@ async def process_and_save_note(session: AsyncSession, user_id: int, raw_text: s
             summary=summary,
             category=category,
             tasks=tasks,
-            reminder_at=reminder_at
+            reminder_at=reminder_at,
+            is_outdoor=is_outdoor
         )
         
     return note, was_updated

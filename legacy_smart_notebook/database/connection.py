@@ -28,3 +28,7 @@ async def init_db():
         await conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon VARCHAR(50) DEFAULT 'tag';"))
         await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMP WITH TIME ZONE;"))
         await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN NOT NULL DEFAULT false;"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100);"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;"))
+        await conn.execute(text("ALTER TABLE notes ADD COLUMN IF NOT EXISTS is_outdoor BOOLEAN NOT NULL DEFAULT false;"))

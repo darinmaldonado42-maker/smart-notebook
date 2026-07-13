@@ -56,7 +56,8 @@ async def create_note(
     summary: str,
     category: str,
     tasks: list,
-    reminder_at: datetime = None
+    reminder_at: datetime = None,
+    is_outdoor: bool = False
 ) -> Note:
     """Creates a new note for a user."""
     note = Note(
@@ -66,6 +67,7 @@ async def create_note(
         summary=summary,
         category=category,
         tasks=ensure_task_objects(tasks),
+        is_outdoor=is_outdoor,
         reminder_at=reminder_at,
         reminder_sent=False
     )
@@ -181,7 +183,8 @@ async def update_note_append(
     new_summary: str,
     append_tasks: list,
     append_raw_text: str,
-    reminder_at: datetime = None
+    reminder_at: datetime = None,
+    is_outdoor: bool = False
 ) -> Note | None:
     """Appends tasks, updates summary, and appends raw original text to an existing note."""
     note = await get_note_by_id(session, user_id, note_id)
@@ -209,6 +212,10 @@ async def update_note_append(
         note.reminder_at = reminder_at
         note.reminder_sent = False
         
+    # If any increment is outdoor, flag note as outdoor
+    if is_outdoor:
+        note.is_outdoor = True
+        
     await session.commit()
     await session.refresh(note)
     return note
@@ -223,7 +230,8 @@ async def update_note(
     summary: str = None,
     tasks: list = None,
     original_text: str = None,
-    reminder_at: datetime = None
+    reminder_at: datetime = None,
+    is_outdoor: bool = None
 ) -> Note | None:
     """Updates fields of an existing note."""
     note = await get_note_by_id(session, user_id, note_id)
@@ -240,6 +248,8 @@ async def update_note(
         note.tasks = ensure_task_objects(tasks)
     if original_text is not None:
         note.original_text = original_text
+    if is_outdoor is not None:
+        note.is_outdoor = is_outdoor
         
     # Reset reminder status if updated
     if reminder_at is not None:
