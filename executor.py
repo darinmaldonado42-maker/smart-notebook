@@ -355,11 +355,11 @@ def play_my_wave(target_screen: str = "main") -> str:
             win.activate()
             time.sleep(0.5)
             
-            # Click exactly in the center of 'My Wave' banner relative to window left and top
-            click_x = win.left + 1249
-            click_y = win.top + 417
+            # Click exactly in the center of Yandex Music yellow play button relative to window left and top
+            click_x = win.left + 1402
+            click_y = win.top + 813
             pyautogui.click(click_x, click_y)
-            return "Запустил 'Мою волну' на Яндекс.Музыке (клик по баннеру)."
+            return "Запустил 'Мою волну' на Яндекс.Музыке (клик по кнопке воспроизведения)."
         else:
             return "Окно браузера не найдено для запуска воспроизведения."
     except Exception as e:
