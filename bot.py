@@ -41,6 +41,21 @@ dp = Dispatcher()
 active_client_ws = None
 pending_requests = {}  # request_id -> asyncio.Future
 
+# Helper to process local voice commands from the client PC
+async def handle_local_voice_command(ws, text):
+    try:
+        commands = await parse_commands_gpt(text)
+        logger.info(f"Parsed local commands: {commands}")
+        for cmd in commands:
+            req_id = f"local-{uuid.uuid4()}"
+            await ws.send_json({
+                "type": "execute",
+                "request_id": req_id,
+                "command": cmd
+            })
+    except Exception as e:
+        logger.error(f"Error handling local voice command: {e}")
+
 # aiohttp WebSocket Handler
 async def websocket_handler(request):
     global active_client_ws
@@ -80,6 +95,12 @@ async def websocket_handler(request):
                     fut = pending_requests.get(req_id)
                     if fut and not fut.done():
                         fut.set_result(data)
+                
+                # Handle local voice commands triggered on the client PC
+                elif data.get("type") == "local_voice_command":
+                    text = data.get("text", "")
+                    logger.info(f"Received local voice command from client: {text}")
+                    asyncio.create_task(handle_local_voice_command(ws, text))
                         
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}", exc_info=True)

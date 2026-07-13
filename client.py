@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import aiohttp
 from dotenv import load_dotenv
+import speech_recognition as sr
 
 # Import the local executor
 import executor
@@ -29,10 +30,9 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 SERVER_URL = os.getenv("WEBAPP_URL", "http://localhost:8080")
 
 if not BOT_TOKEN:
-    # We will let the client run but show a warning if BOT_TOKEN is empty
     logger.warning("BOT_TOKEN is not configured in .env file!")
 
-# Convert http/https server URL to WebSocket ws/wss URL
+# Convert server URL to WebSocket URL (pointing to root path)
 if SERVER_URL.startswith("https://"):
     WS_URL = SERVER_URL.replace("https://", "wss://") + "/"
 elif SERVER_URL.startswith("http://"):
@@ -42,6 +42,10 @@ else:
 
 # Thread-safe queue for Tkinter GUI updates
 gui_queue = queue.Queue()
+
+# Global references for sending commands from local GUI/Voice threads to WebSocket
+global_ws = None
+global_loop = None
 
 # Auto-startup configuration helper
 def get_startup_shortcut_path() -> str:
@@ -57,7 +61,6 @@ def set_startup_state(enable: bool):
         try:
             python_exe = sys.executable
             script_path = os.path.abspath(__file__)
-            # Write a simple launcher batch file
             with open(bat_path, "w", encoding="utf-8") as f:
                 f.write(f'@echo off\ncd /d "{os.path.dirname(script_path)}"\nstart "" "{python_exe}" "{script_path}"\n')
             logger.info("Startup bat file created.")
@@ -74,8 +77,61 @@ def set_startup_state(enable: bool):
 def is_startup_enabled() -> bool:
     return os.path.exists(get_startup_shortcut_path())
 
+# Local Speech Listener (Wake Word: "Джарвис")
+def local_voice_listener():
+    recognizer = sr.Recognizer()
+    try:
+        microphone = sr.Microphone()
+        # Calibrate microphone for ambient noise
+        with microphone as source:
+            recognizer.adjust_for_ambient_noise(source, duration=1.0)
+    except Exception as mic_err:
+        logger.error(f"Failed to initialize microphone: {mic_err}")
+        gui_queue.put({"type": "log", "val": "🎙️ Ошибка: Микрофон не обнаружен или занят. Джарвис оффлайн."})
+        return
+
+    logger.info("Local voice listener started. Waiting for wake word 'Джарвис'...")
+    gui_queue.put({"type": "log", "val": "🎙️ Джарвис активен. Жду команду..."})
+    
+    while True:
+        try:
+            with microphone as source:
+                # Listen for phrase (timeout None means wait indefinitely, phrase_time_limit sets max phrase duration)
+                audio = recognizer.listen(source, timeout=None, phrase_time_limit=8)
+                
+            # Transcribe audio using Google Speech API
+            text = recognizer.recognize_google(audio, language="ru-RU").lower().strip()
+            logger.info(f"Local speech heard: '{text}'")
+            
+            # Check if text contains the wake word "джарвис" or "jarvis"
+            if "джарвис" in text or "jarvis" in text:
+                # Extract command by stripping wake word
+                command_text = text.replace("джарвис", "").replace("jarvis", "").strip()
+                if command_text:
+                    gui_queue.put({"type": "log", "val": f"🎙️ Джарвис услышал: \"{command_text}\""})
+                    
+                    # Send command thread-safely to WebSocket
+                    if global_ws and global_loop and not global_ws.closed:
+                        coro = global_ws.send_json({
+                            "type": "local_voice_command",
+                            "text": command_text
+                        })
+                        asyncio.run_coroutine_threadsafe(coro, global_loop)
+                    else:
+                        gui_queue.put({"type": "log", "val": "⚠️ Джарвис: Не могу отправить команду (нет сети с сервером)"})
+                        
+        except sr.UnknownValueError:
+            # Unintelligible speech
+            pass
+        except Exception as e:
+            logger.error(f"Error in speech listener loop: {e}")
+            time.sleep(2)
+
 # Client Websockets logic running in asyncio background thread
 async def websocket_client_loop():
+    global global_ws, global_loop
+    global_loop = asyncio.get_event_loop()
+    
     while True:
         gui_queue.put({"type": "status", "val": "connecting"})
         logger.info(f"Connecting to WebSocket server at {WS_URL}...")
@@ -97,11 +153,13 @@ async def websocket_client_loop():
                         await asyncio.sleep(10)
                         continue
                         
+                    # Set global reference
+                    global_ws = ws
                     gui_queue.put({"type": "status", "val": "connected"})
                     logger.info("WebSocket authenticated and connected successfully.")
                     
                     async for msg in ws:
-                        if msg.type == web.WSMsgType.TEXT if 'web' in globals() else msg.type == aiohttp.WSMsgType.TEXT:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
                             try:
                                 data = json.loads(msg.data)
                             except Exception:
@@ -118,7 +176,6 @@ async def websocket_client_loop():
                                 
                                 # Run command on PC
                                 loop = asyncio.get_event_loop()
-                                # Run CPU/IO bound executor in default executor thread to avoid blocking loop
                                 status, file_path = await loop.run_in_executor(None, executor.execute_command_dict, cmd)
                                 
                                 # Prepare screenshot if present
@@ -143,6 +200,7 @@ async def websocket_client_loop():
                                 
         except Exception as e:
             logger.error(f"WebSocket client loop exception: {e}")
+            global_ws = None
             gui_queue.put({"type": "status", "val": "disconnected", "err": str(e)})
             
         logger.info("Reconnecting in 5 seconds...")
@@ -158,9 +216,9 @@ def start_async_loop():
 class PCControlGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("PC Control Client")
-        self.root.geometry("450x350")
-        self.root.minsize(400, 300)
+        self.root.title("PC Control Client (Jarvis)")
+        self.root.geometry("480x420")
+        self.root.minsize(450, 380)
         
         # Style
         self.style = ttk.Style()
@@ -189,7 +247,7 @@ class PCControlGUI:
         
         # Logs Listbox
         ttk.Label(self.main_frame, text="Лог событий:", font=("Arial", 10)).pack(anchor=tk.W, pady=(10, 2))
-        self.log_area = tk.Text(self.main_frame, height=8, state=tk.DISABLED, wrap=tk.WORD, font=("Consolas", 9))
+        self.log_area = tk.Text(self.main_frame, height=10, state=tk.DISABLED, wrap=tk.WORD, font=("Consolas", 9))
         self.log_area.pack(fill=tk.BOTH, expand=True, pady=5)
         
         # Checkbox for Startup
@@ -202,6 +260,20 @@ class PCControlGUI:
         )
         self.startup_check.pack(anchor=tk.W, pady=5)
         
+        # Local Command Entry frame
+        self.cmd_frame = ttk.Frame(self.main_frame)
+        self.cmd_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=(10, 0))
+        
+        self.cmd_entry = ttk.Entry(self.cmd_frame, font=("Arial", 10))
+        self.cmd_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.cmd_entry.insert(0, "Введите команду здесь...")
+        self.cmd_entry.bind("<FocusIn>", self.clear_placeholder)
+        self.cmd_entry.bind("<FocusOut>", self.add_placeholder)
+        self.cmd_entry.bind("<Return>", self.send_local_command)
+        
+        self.send_btn = ttk.Button(self.cmd_frame, text="Отправить", command=self.send_local_command)
+        self.send_btn.pack(side=tk.RIGHT)
+        
         # Start queue checker
         self.root.after(100, self.update_gui_from_queue)
         self.log("Клиент запущен. Готов к работе.")
@@ -213,6 +285,31 @@ class PCControlGUI:
         self.log_area.see(tk.END)
         self.log_area.config(state=tk.DISABLED)
         
+    def clear_placeholder(self, event):
+        if self.cmd_entry.get() == "Введите команду здесь...":
+            self.cmd_entry.delete(0, tk.END)
+            
+    def add_placeholder(self, event):
+        if not self.cmd_entry.get():
+            self.cmd_entry.insert(0, "Введите команду здесь...")
+            
+    def send_local_command(self, event=None):
+        text = self.cmd_entry.get().strip()
+        if not text or text == "Введите команду здесь...":
+            return
+            
+        self.log(f"💻 Отправляю команду: \"{text}\"")
+        self.cmd_entry.delete(0, tk.END)
+        
+        if global_ws and global_loop and not global_ws.closed:
+            coro = global_ws.send_json({
+                "type": "local_voice_command",
+                "text": text
+            })
+            asyncio.run_coroutine_threadsafe(coro, global_loop)
+        else:
+            self.log("⚠️ Ошибка: Нет соединения с облачным сервером.")
+            
     def toggle_startup(self):
         state = self.startup_var.get()
         set_startup_state(state)
@@ -250,7 +347,6 @@ class PCControlGUI:
         self.root.after(100, self.update_gui_from_queue)
 
 if __name__ == "__main__":
-    # If BOT_TOKEN is missing, show an alert dialog first
     if not BOT_TOKEN:
         root_temp = tk.Tk()
         root_temp.withdraw()
@@ -262,8 +358,12 @@ if __name__ == "__main__":
         sys.exit(1)
         
     # Start the async thread loop
-    t = threading.Thread(target=start_async_loop, daemon=True)
-    t.start()
+    t_async = threading.Thread(target=start_async_loop, daemon=True)
+    t_async.start()
+    
+    # Start the local voice listener thread
+    t_voice = threading.Thread(target=local_voice_listener, daemon=True)
+    t_voice.start()
     
     # Start the Tkinter App
     root = tk.Tk()
