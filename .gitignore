@@ -70,3 +70,7 @@ docker-compose.override.yml
 
 # Ignore other projects
 verity_mod/
+
+# Pyrogram session files
+*.session
+*.session-journal
