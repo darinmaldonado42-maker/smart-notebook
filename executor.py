@@ -340,7 +340,7 @@ def play_my_wave(target_screen: str = "main") -> str:
     try:
         # 1. Open Yandex Music
         open_url("https://music.yandex.ru/home", target_screen)
-        time.sleep(1.5)
+        time.sleep(2.5)
         
         # 2. Find and focus browser window
         win = None
