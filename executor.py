@@ -175,9 +175,34 @@ def media_control(action: str) -> str:
         logger.error(f"Media control failed: {e}", exc_info=True)
         return f"Ошибка мультимедиа: {e}"
 
+def find_app_shortcut(app_name: str) -> str:
+    """Recursively searches Start Menu and Desktop folders for a matching app shortcut (.lnk or .exe)."""
+    app_name_lower = app_name.lower().strip()
+    
+    # Common Windows folders containing app shortcuts/executables
+    username = os.getlogin()
+    search_dirs = [
+        r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs",
+        f"C:\\Users\\{username}\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs",
+        r"C:\Users\Public\Desktop",
+        f"C:\\Users\\{username}\\Desktop",
+        f"C:\\Users\\{username}\\AppData\\Local\\Programs"
+    ]
+    
+    for base_dir in search_dirs:
+        if not os.path.exists(base_dir):
+            continue
+        for root, dirs, files in os.walk(base_dir):
+            for file in files:
+                if file.lower().endswith((".lnk", ".exe")):
+                    name_without_ext = os.path.splitext(file)[0].lower()
+                    if app_name_lower == name_without_ext or app_name_lower in name_without_ext:
+                        return os.path.join(root, file)
+    return ""
+
 def open_app(app_query: str, target_screen: str = "main") -> str:
     """Launches local Windows applications and optionally moves them to target screen."""
-    query = app_query.lower()
+    query = app_query.lower().strip()
     
     app_map = {
         "калькулятор": "calc.exe",
@@ -192,29 +217,45 @@ def open_app(app_query: str, target_screen: str = "main") -> str:
     
     executable = None
     keyword = None
+    
+    # 1. Match hardcoded mapping
     for name, exe in app_map.items():
         if name in query:
             executable = exe
             keyword = name
             break
             
+    # 2. Search for Windows Start Menu / Desktop shortcuts (.lnk or .exe)
     if not executable:
-        if query.endswith(".exe"):
+        shortcut_path = find_app_shortcut(app_query)
+        if shortcut_path:
+            executable = shortcut_path
+            keyword = os.path.splitext(os.path.basename(shortcut_path))[0]
+        elif query.endswith(".exe"):
             executable = query
             keyword = query.replace(".exe", "")
         else:
-            return f"Приложение '{app_query}' не найдено в списке поддерживаемых."
+            # Fallback to direct execution attempt
+            executable = app_query
+            keyword = app_query
             
     try:
-        subprocess.Popen(executable, shell=True)
+        if executable.endswith(".lnk"):
+            os.startfile(executable)
+            res_msg = f"Запустил ярлык: {os.path.basename(executable)}"
+        else:
+            subprocess.Popen(executable, shell=True)
+            res_msg = f"Запустил приложение: {executable}"
+            
         # Move window if target screen is not main
         if target_screen != "main" and keyword:
-            time.sleep(1.5) # Wait for program GUI to spawn
+            time.sleep(2.0)  # Wait for program window to spawn
             move_window_to_screen(keyword, target_screen)
-        return f"Запустил приложение: {executable} (экран: {target_screen})"
+            return f"{res_msg} (переместил на экран: {target_screen})"
+        return f"{res_msg} (экран: {target_screen})"
     except Exception as e:
-        logger.error(f"Error launching {executable}: {e}", exc_info=True)
-        return f"Ошибка при запуске: {e}"
+        logger.error(f"Error launching application '{app_query}': {e}", exc_info=True)
+        return f"Ошибка при запуске '{app_query}': {e}"
 
 def adjust_volume(action: str, amount: int = 10) -> str:
     """Adjusts Windows system volume."""
@@ -333,6 +374,21 @@ def execute_command_dict(cmd_data: dict) -> tuple[str, str]:
         keyword = args.get("keyword", "")
         screen = args.get("target_screen", "main")
         res = move_window_to_screen(keyword, screen)
+        return res, ""
+        
+    elif command == "list_windows":
+        try:
+            titles = []
+            for w in gw.getAllWindows():
+                if w.title and w.width > 100 and w.height > 100:
+                    titles.append(w.title)
+            unique_titles = list(set(titles))
+            if not unique_titles:
+                res = "Открытые окна не найдены."
+            else:
+                res = "Список открытых окон:\n" + "\n".join([f"- {t}" for t in unique_titles])
+        except Exception as e:
+            res = f"Ошибка получения списка окон: {e}"
         return res, ""
         
     elif command == "run_custom_script":
